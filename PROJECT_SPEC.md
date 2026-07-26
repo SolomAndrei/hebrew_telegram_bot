@@ -8,7 +8,7 @@
 
 ### База проекта
 
-- [ ] Выбран и зафиксирован стек backend: Express или Fastify
+- [x] Выбран и зафиксирован стек backend: NestJS + Fastify
 - [ ] Настроен TypeScript
 - [ ] Настроены переменные окружения
 - [ ] Подключен Supabase / PostgreSQL
@@ -107,7 +107,7 @@
 
 - **Telegram Bot**: Node.js + grammY или telegraf. Точка входа, управление настройками и ссылками.
 - **Telegram Mini App**: React / Vite / Tailwind SPA внутри Telegram. Отвечает за процесс чтения и интерактивное взаимодействие со словами.
-- **Backend API**: Node.js + Express или Fastify. Бизнес-логика, OpenAI API, валидация, работа с БД.
+- **Backend API**: Node.js + NestJS с Fastify adapter. Бизнес-логика, OpenAI API, валидация, работа с БД.
 - **База данных**: Supabase / PostgreSQL. Хранение пользователей, словаря, истории адаптаций и whitelist.
 
 ## 2. Безопасность и ограничение доступа
@@ -346,7 +346,7 @@ DifficultyRatio = clicks_on_translation / total_words
 
 ## 5. Технологический стек
 
-- **Backend**: Node.js, TypeScript, Express или Fastify
+- **Backend**: NestJS, TypeScript, Fastify adapter
 - **Telegram Bot**: grammY или telegraf
 - **Mini App Frontend**: React, Vite, Tailwind CSS, `@telegram-apps/sdk`
 - **Database & Auth**: Supabase / PostgreSQL
