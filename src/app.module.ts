@@ -9,6 +9,8 @@ import { BotModule } from './bot/bot.module';
 import { validateEnv } from './config/env.schema';
 import { DatabaseModule } from './database/database.module';
 import { JobsModule } from './jobs/jobs.module';
+import { MeModule } from './me/me.module';
+import { TranslationModule } from './translation/translation.module';
 
 @Module({
   imports: [
@@ -20,7 +22,9 @@ import { JobsModule } from './jobs/jobs.module';
     BotModule,
     DatabaseModule,
     JobsModule,
+    MeModule,
     ScheduleModule.forRoot(),
+    TranslationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

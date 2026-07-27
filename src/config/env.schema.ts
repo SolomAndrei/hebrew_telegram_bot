@@ -11,6 +11,10 @@ const telegramIdsSchema = z.string().refine(
   },
 );
 
+const booleanStringSchema = z
+  .enum(['true', 'false'])
+  .transform((value) => value === 'true');
+
 const envSchema = z
   .object({
     NODE_ENV: z
@@ -30,6 +34,7 @@ const envSchema = z
       .int()
       .positive()
       .default(100),
+    JOBS_WORKER_ENABLED: booleanStringSchema.optional(),
     PUBLIC_API_URL: z.url().optional(),
     ALLOWED_TELEGRAM_IDS: telegramIdsSchema,
     OPENAI_API_KEY: z.string().optional(),
@@ -41,6 +46,8 @@ const envSchema = z
     TELEGRAM_BOT_MODE:
       env.TELEGRAM_BOT_MODE ??
       (env.NODE_ENV === 'production' ? 'webhook' : 'polling'),
+    JOBS_WORKER_ENABLED:
+      env.JOBS_WORKER_ENABLED ?? env.NODE_ENV === 'production',
   }))
   .superRefine((env, ctx) => {
     if (env.TELEGRAM_BOT_MODE !== 'webhook') {

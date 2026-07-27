@@ -2,6 +2,8 @@
 
 Документ нужен как постоянная точка опоры по проекту: здесь хранится техническое задание, архитектура, критерии приемки и чеклист выполненных работ.
 
+Последнее обновление: 2026-07-27.
+
 ## Статус работ
 
 Обновляй чекбоксы по мере реализации.
@@ -12,7 +14,7 @@
 - [x] Настроен TypeScript
 - [x] Настроены переменные окружения
 - [x] Подключен Supabase / PostgreSQL
-- [ ] Подключен OpenAI API
+- [x] Подключен OpenAI API
 - [ ] Добавлен общий логгер и обработка ошибок
 
 ### Приватность и доступ
@@ -20,8 +22,8 @@
 - [x] Добавлен `ALLOWED_TELEGRAM_IDS`
 - [x] Реализована middleware-проверка Telegram ID в боте
 - [x] Неавторизованные пользователи получают отказ или игнорируются
-- [ ] Реализована валидация `x-telegram-init-data` для Mini App
-- [ ] После валидации initData проверяется whitelist пользователя
+- [x] Реализована валидация `x-telegram-init-data` для Mini App
+- [x] После валидации initData проверяется whitelist пользователя
 - [ ] В BotFather отключено добавление бота в группы
 
 ### Telegram Bot
@@ -29,18 +31,18 @@
 - [x] Настроен бот на grammY
 - [x] Добавлен production webhook endpoint для Telegram
 - [x] Добавлен скрипт регистрации Telegram webhook
-- [ ] Бот принимает прямые ссылки на новости
-- [ ] Бот принимает сырой текст на иврите
-- [ ] Бот запускает адаптацию текста
-- [ ] Бот отправляет ссылку / кнопку открытия Telegram Mini App
-- [ ] Добавлена настройка уровня пользователя
+- [x] Бот принимает прямые ссылки на новости и ставит их в очередь
+- [x] Бот принимает сырой текст на иврите
+- [x] Бот запускает адаптацию сырого ивритского текста
+- [x] Бот отправляет article id или ссылку для открытия будущего Mini App route
+- [x] Добавлен backend API для чтения и изменения уровня пользователя
 
 ### Очередь и защита от нагрузки
 
 - [x] Добавлен rate limit перед постановкой Telegram-сообщений в обработку
 - [x] Подготовлена SQL-миграция `jobs` для Postgres-backed очереди
 - [x] Добавлен `JobsModule` с портом очереди и Supabase adapter
-- [ ] Реализован worker обработки jobs
+- [x] Реализован worker обработки jobs
 - [ ] Добавлены дневные бюджетные лимиты LLM jobs на пользователя
 
 ### Инжест источников
@@ -53,57 +55,96 @@
 
 ### Адаптация текста через LLM
 
-- [ ] Реализован Prompt этапа адаптации
-- [ ] OpenAI вызывается с JSON-ответом
-- [ ] Ответ адаптации валидируется по схеме
-- [ ] Реализован Validator Prompt
-- [ ] При `is_valid = true` статья сохраняется
-- [ ] При `is_valid = false` выполняется повторная генерация до 2 попыток
+- [x] Реализован Prompt этапа адаптации
+- [x] OpenAI вызывается с JSON-ответом
+- [x] Ответ адаптации валидируется по схеме
+- [x] Реализован Validator Prompt
+- [x] При `is_valid = true` статья сохраняется
+- [x] При `is_valid = false` выполняется повторная генерация до 2 попыток
 - [ ] Реализован fallback, если адаптация не прошла проверку
-- [ ] В адаптацию подмешиваются сложные слова пользователя
+- [x] В адаптацию подмешиваются сложные слова пользователя
 
 ### Telegram Mini App
 
-- [ ] Создан React / Vite frontend
-- [ ] Подключен Tailwind CSS
-- [ ] Подключен `@telegram-apps/sdk`
-- [ ] Экран чтения отображает текст справа налево
-- [ ] Каждое слово рендерится интерактивным `span`
-- [ ] Запускается таймер чтения
-- [ ] Клик по слову открывает Bottom Sheet
-- [ ] Bottom Sheet показывает перевод, транскрипцию, лемму и альтернативы
-- [ ] Кнопка завершения чтения отправляет статистику на backend
+- [x] Добавлен backend auth guard для Mini App initData
+- [x] Добавлен backend endpoint `GET /api/me`
+- [x] Добавлен backend endpoint `PATCH /api/me/level`
+- [x] Добавлен backend endpoint `GET /api/articles/:id`
+- [x] Создан React / Vite frontend
+- [x] Подключен Tailwind CSS
+- [x] Подключен Telegram Mini App initData bootstrap
+- [x] Экран чтения отображает текст справа налево
+- [x] Каждое слово рендерится интерактивным элементом
+- [x] Клик по слову открывает Bottom Sheet
+- [x] Bottom Sheet показывает перевод, транскрипцию, лемму и альтернативы
+- [ ] Кнопка завершения чтения отправляет статистику без учета времени чтения
 
 ### Словарь и прогресс
 
-- [ ] При клике слово добавляется в `user_words`
-- [ ] Слово получает статус `learning`
-- [ ] Сохраняется `last_seen_at`
+- [x] При клике слово добавляется в `user_words`
+- [x] Слово получает статус `learning`
+- [x] Сохраняется `last_seen_at`
 - [ ] После чтения считается `DifficultyRatio`
 - [ ] `current_level_score` пользователя пересчитывается по метрикам чтения
 - [ ] Добавлена логика перехода слов в `mastered`
 
 ### База данных
 
-- [ ] Создана таблица `users`
-- [ ] Создана таблица `user_words`
-- [ ] Создан enum статуса слова: `learning`, `mastered`
-- [ ] Создана таблица `articles`
-- [ ] Добавлены индексы на `telegram_id` и внешние ключи
-- [ ] Подготовлены миграции / SQL-скрипты
+- [x] Создана таблица `users`
+- [x] Создана таблица `user_words`
+- [x] Создан enum статуса слова: `learning`, `mastered`
+- [x] Создана таблица `articles`
+- [x] Добавлены индексы на `telegram_id` и внешние ключи
+- [x] Подготовлены миграции / SQL-скрипты
 
 ### Definition of Done
 
-- [ ] Чужой Telegram ID не получает доступ к боту
-- [ ] Mini App не принимает невалидный `initData`
+- [x] Чужой Telegram ID не получает доступ к боту
+- [x] Mini App не принимает невалидный `initData`
 - [ ] Бот принимает ссылку на новость и запускает адаптацию
-- [ ] Бот принимает сырой ивритский текст и запускает адаптацию
-- [ ] Адаптированный текст проходит авто-проверку
-- [ ] Статья сохраняется в БД
-- [ ] Mini App показывает адаптированный текст
-- [ ] Клик по слову возвращает контекстный перевод и транскрипцию
-- [ ] Незнакомые слова сохраняются в БД
+- [x] Бот принимает сырой ивритский текст и запускает адаптацию
+- [x] Адаптированный текст проходит авто-проверку
+- [x] Статья сохраняется в БД
+- [x] Mini App показывает адаптированный текст
+- [x] Клик по слову возвращает контекстный перевод и транскрипцию
+- [x] Незнакомые слова сохраняются в БД
 - [ ] Уровень пользователя пересчитывается после чтения
+
+## Текущее состояние реализации
+
+На 2026-07-27 backend реализован как NestJS + Fastify приложение с глобальным prefix `/api`.
+
+Готово:
+
+- `AccessModule`: whitelist по `ALLOWED_TELEGRAM_IDS` и rate limit для Telegram user messages.
+- `BotModule`: grammY bot в polling/webhook режимах, webhook endpoint, source classification, постановка jobs в очередь.
+- `JobsModule`: Postgres-backed queue через Supabase, RPC claim/complete/fail, worker обработки jobs.
+- `SourcesModule`: классификация raw Hebrew text, URL, public Telegram channel refs; URL/Telegram extraction adapters пока являются портами без реализации.
+- `UsersModule`: создание/поиск пользователя, чтение learning words, счётчик learning words, обновление `current_level_score`.
+- `AdaptationModule`: OpenAI adapter, JSON response mode, prompt адаптации, validator prompt, retry до 2 повторных генераций.
+- `ArticlesModule`: сохранение адаптированных статей в таблицу `articles`, защищённое чтение статьи по `id` для текущего пользователя.
+- `TelegramAuthModule`: проверка Telegram Mini App `initData` через HMAC, извлечение текущего Telegram user, whitelist check.
+- `MeModule`: защищённые `GET /api/me` и `PATCH /api/me/level`.
+- `TranslationModule`: защищённый `POST /api/translate-word`, word analysis через OpenAI adapter, upsert `user_words`, возврат `learningWordsCount`.
+- `mini-app/`: Vite / React / Tailwind frontend skeleton, Telegram initData header, client API для `GET /api/me` и `GET /api/articles/:id`, RTL экран чтения.
+
+Ограничения текущей реализации:
+
+- URL и Telegram channel jobs пока ставятся в очередь, но extraction не подключен.
+- Bot пока отправляет plain URL или article id, а не Telegram Mini App keyboard button.
+- Mini App пока не реализует finish-reading flow и word mastery logic.
+- Static runtime strings в `src` должны оставаться English-only; русский язык допустим в документации и AI translation fields.
+
+## Следующий шаг
+
+Следующий выбранный шаг: реализовать finish-reading flow без учета времени чтения.
+
+Цель шага:
+
+- добавить backend endpoint завершения чтения под Mini App auth;
+- считать `DifficultyRatio = translationRequestsCount / generatedWordsCount`;
+- обновлять `current_level_score` без использования времени чтения;
+- подготовить frontend кнопку завершения чтения и отправку статистики.
 
 ## 1. Общие сведения и архитектура
 
@@ -135,7 +176,7 @@ Use cases / services -> ports -> adapters -> external providers
 - бизнес-логика работает через локальные интерфейсы/порты, а не напрямую через SDK внешних сервисов;
 - Supabase, будущая промышленная БД, Redis/BullMQ, OpenAI или другой LLM-провайдер подключаются как адаптеры;
 - замена адаптера не должна требовать переписывания use case-логики;
-- Nest-модули должны иметь четкие границы ответственности: `BotModule`, `AccessModule`, `DatabaseModule`, `JobsModule`, `AdaptationModule`, `ArticlesModule`;
+- Nest-модули должны иметь четкие границы ответственности: `BotModule`, `AccessModule`, `DatabaseModule`, `JobsModule`, `AdaptationModule`, `ArticlesModule`, `UsersModule`, `TelegramAuthModule`, `MeModule`;
 - SDK внешних сервисов должны быть инкапсулированы внутри инфраструктурных сервисов, например `SupabaseService`, `TelegramBotService`, `OpenAiAdapter`;
 - для MVP допустимы простые реализации адаптеров, но публичные методы модулей должны проектироваться так, чтобы их можно было заменить без изменения потребителей.
 
@@ -194,21 +235,33 @@ Backend валидирует HMAC-подпись `initData` через `BOT_TOKE
 
 ## 3. Функциональные требования
 
-### 3.1. Управление источниками новостей
+### 3.1. Управление источниками чтения
 
-Система принимает новости и тексты из трех каналов.
+Бот не является универсальным чат-ботом. Его единственная задача — принять источник для чтения, проверить его, поставить задачу адаптации и вернуть пользователю адаптированный материал или ссылку / кнопку открытия Mini App.
+
+Static UI и bot messages пишутся на английском. AI-перевод слова и транскрипция возвращаются на русском языке.
+
+Система принимает источники из трех каналов.
 
 #### Прямая ссылка от пользователя в чат
 
 Пользователь отправляет боту URL на израильский сайт, например Ynet или Walla, либо ссылку на публичный Telegram-пост.
 
-Сервер скрейпит контент по ссылке через Cheerio, RSS или gramjs и отправляет текст на адаптацию.
+Backend извлекает текст через Cheerio / RSS / другой adapter, проверяет, что извлеченный контент написан на иврите, и только после этого ставит задачу адаптации.
 
 #### Произвольный текст в чат
 
 Пользователь копирует и отправляет сырой текст на иврите прямо в сообщения боту.
 
-Backend принимает текст и запускает LLM pipeline адаптации.
+Backend проверяет, что текст написан на иврите. Если текст не на иврите, бот отвечает отказом на английском и не создает job.
+
+#### Публичный Telegram-канал или Telegram-ссылка
+
+Пользователь отправляет публичный `t.me/...` link или username канала. Backend должен получить последние 5 постов через Telegram adapter, проверить, что посты достаточно ивритские, и только после этого разрешить использовать канал как источник.
+
+Если последние 5 постов не на иврите или канал недоступен, бот отвечает отказом на английском.
+
+Когда пользователь выбирает Telegram-канал как источник, в Mini App или боте должна быть доступна команда / кнопка `Send news`. После нажатия система берет свежую новость из источника, адаптирует ее под текущий уровень пользователя и возвращает материал для чтения.
 
 #### Автоматический парсинг
 
@@ -220,7 +273,13 @@ Cron-задача на backend собирает свежие новости из
 
 ### 3.2. Настройка уровня сложности
 
-Пользователь один раз настраивает базовый уровень адаптации текста в боте или при первом входе в Mini App.
+Пользователь настраивает уровень сложности в Mini App. Бот может давать ссылку / кнопку открытия Mini App, но управление настройками происходит в Mini App.
+
+Mini App home/settings показывает:
+
+- текущий уровень сложности текстов;
+- количество слов в статусе `learning`;
+- возможность изменить уровень сложности.
 
 Шкала сложности:
 
@@ -232,8 +291,10 @@ Cron-задача на backend собирает свежие новости из
 Впоследствии система динамически корректирует уровень на основе метрик чтения:
 
 - количество кликов на перевод
-- скорость чтения
 - доля незнакомых слов
+- количество сгенерированных слов без запросов перевода
+
+Если пользователю было сгенерировано `1000` слов и за это время он ни разу не запросил перевод, система повышает `current_level_score`.
 
 ### 3.3. LLM pipeline адаптации и контроля качества
 
@@ -303,11 +364,11 @@ Backend logic:
 
 - Текст рендерится с выравниванием справа налево: `dir="rtl"`.
 - Каждое слово оборачивается в интерактивный `<span>`.
-- При открытии статьи запускается таймер чтения.
+- Время чтения не считается: тексты отличаются по размеру, поэтому эта метрика не используется для прогресса.
 
 #### Клик по слову
 
-При тапе на слово frontend отправляет запрос:
+При тапе на слово Mini App показывает действие / кнопку `Show translation`. Если пользователь нажимает кнопку, frontend отправляет запрос:
 
 ```http
 POST /api/translate-word
@@ -317,8 +378,9 @@ POST /api/translate-word
 
 ```json
 {
+  "articleId": "string",
   "word": "string",
-  "sentence_context": "string"
+  "sentenceContext": "string"
 }
 ```
 
@@ -326,16 +388,36 @@ Backend вызывает LLM и возвращает:
 
 ```json
 {
-  "context_translation": "string",
-  "transcription": "string",
-  "infinitive_or_lemma": "string",
-  "alternatives": ["string"]
+  "contextTranslationRu": "string",
+  "transcriptionRu": "string",
+  "lemma": "string",
+  "partOfSpeech": "string",
+  "baseFormReason": "string",
+  "alternatives": ["string"],
+  "learningWordsCount": 12
 }
 ```
 
-В Mini App снизу выезжает Bottom Sheet с этими данными.
+В Mini App снизу выезжает Bottom Sheet с этими данными. Перевод и транскрипция показываются на русском языке.
 
-Слово автоматически добавляется в БД в таблицу `user_words` со статусом `learning`.
+Backend нормализует слово до базовой формы перед сохранением:
+
+- существительные сохраняются в базовой / словарной форме, где возможно;
+- глаголы сохраняются как инфинитив / лемма, где возможно;
+- местоимения, частицы и другие части речи сохраняются по решению word-analysis adapter;
+- не нужно сохранять каждый вариант склонения или спряжения как отдельное изучаемое слово.
+
+Нормализованное слово добавляется в `user_words` конкретного пользователя со статусом `learning`.
+
+#### Подмешивание изучаемых слов
+
+При адаптации новых текстов backend подмешивает слова пользователя из `user_words.status = learning`, если они подходят по смыслу и не ломают факты текста.
+
+Для каждого подмешанного слова:
+
+- если пользователь не запросил перевод, увеличивается `successful_exposures`;
+- если пользователь запросил перевод, `successful_exposures` не увеличивается;
+- после `10` успешных exposures слово считается изученным и получает статус `mastered`.
 
 #### Завершение чтения
 
@@ -356,7 +438,10 @@ DifficultyRatio = clicks_on_translation / total_words
 | `id` | `uuid` | Primary key |
 | `telegram_id` | `bigint` | Unique, indexed |
 | `current_level_score` | `int` | Default `300` |
+| `generated_words_without_translation` | `int` | Счетчик слов для авто-повышения уровня |
+| `last_level_up_at` | `timestamp` | Последнее автоматическое повышение уровня |
 | `created_at` | `timestamp` | Дата создания |
+| `updated_at` | `timestamp` | Дата обновления |
 
 ### `user_words`
 
@@ -365,9 +450,27 @@ DifficultyRatio = clicks_on_translation / total_words
 | `id` | `uuid` | Primary key |
 | `user_id` | `uuid` | FK -> `users.id` |
 | `lemma` | `string` | Начальная форма слова |
-| `confidence_score` | `int` | Default `-3` |
+| `original_word` | `string` | Исходная форма, по которой пользователь запросил перевод |
+| `part_of_speech` | `string` | Часть речи, если определена |
 | `status` | `enum` | `learning` или `mastered` |
+| `successful_exposures` | `int` | Сколько раз слово было подмешано без запроса перевода |
+| `translation_requests` | `int` | Сколько раз пользователь запросил перевод |
 | `last_seen_at` | `timestamp` | Когда слово встречалось последний раз |
+| `created_at` | `timestamp` | Дата создания |
+| `updated_at` | `timestamp` | Дата обновления |
+
+Уникальность: `unique(user_id, lemma)`.
+
+### `reading_stats`
+
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key |
+| `user_id` | `uuid` | FK -> `users.id` |
+| `article_id` | `uuid` | FK -> `articles.id`, nullable |
+| `generated_words_count` | `int` | Сколько слов было сгенерировано для чтения |
+| `translation_requests_count` | `int` | Сколько переводов запросил пользователь |
+| `created_at` | `timestamp` | Дата создания |
 
 ### `articles`
 
@@ -393,6 +496,12 @@ DifficultyRatio = clicks_on_translation / total_words
 
 Черновой набор endpoint'ов для backend.
 
+Mini App endpoints должны принимать заголовок:
+
+```http
+x-telegram-init-data: <Telegram WebApp initData>
+```
+
 ### `POST /api/articles/adapt`
 
 Запускает адаптацию текста или статьи.
@@ -408,6 +517,17 @@ DifficultyRatio = clicks_on_translation / total_words
 
 Возвращает адаптированную статью для чтения.
 
+Response:
+
+```json
+{
+  "id": "string",
+  "title": "string",
+  "adaptedText": "string",
+  "difficultyScore": 300
+}
+```
+
 ### `POST /api/translate-word`
 
 Возвращает контекстный перевод слова.
@@ -415,8 +535,8 @@ DifficultyRatio = clicks_on_translation / total_words
 ```json
 {
   "word": "string",
-  "sentence_context": "string",
-  "article_id": "string"
+  "sentenceContext": "string",
+  "articleId": "string"
 }
 ```
 
@@ -426,10 +546,9 @@ DifficultyRatio = clicks_on_translation / total_words
 
 ```json
 {
-  "article_id": "string",
-  "total_words": 100,
-  "translation_clicks": 12,
-  "reading_time_seconds": 240
+  "articleId": "string",
+  "generatedWordsCount": 100,
+  "translationRequestsCount": 12
 }
 ```
 
@@ -437,13 +556,23 @@ DifficultyRatio = clicks_on_translation / total_words
 
 Возвращает профиль текущего пользователя.
 
+Response:
+
+```json
+{
+  "telegramId": 123456789,
+  "currentLevelScore": 300,
+  "learningWordsCount": 0
+}
+```
+
 ### `PATCH /api/me/level`
 
 Обновляет базовый уровень пользователя.
 
 ```json
 {
-  "current_level_score": 300
+  "currentLevelScore": 300
 }
 ```
 
