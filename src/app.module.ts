@@ -10,6 +10,7 @@ import { validateEnv } from './config/env.schema';
 import { DatabaseModule } from './database/database.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MeModule } from './me/me.module';
+import { ReadingSessionsModule } from './reading-sessions/reading-sessions.module';
 import { TranslationModule } from './translation/translation.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { TranslationModule } from './translation/translation.module';
     DatabaseModule,
     JobsModule,
     MeModule,
+    ReadingSessionsModule,
     ScheduleModule.forRoot(),
     TranslationModule,
   ],

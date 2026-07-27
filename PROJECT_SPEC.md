@@ -77,15 +77,15 @@
 - [x] Каждое слово рендерится интерактивным элементом
 - [x] Клик по слову открывает Bottom Sheet
 - [x] Bottom Sheet показывает перевод, транскрипцию, лемму и альтернативы
-- [ ] Кнопка завершения чтения отправляет статистику без учета времени чтения
+- [x] Кнопка завершения чтения отправляет статистику без учета времени чтения
 
 ### Словарь и прогресс
 
 - [x] При клике слово добавляется в `user_words`
 - [x] Слово получает статус `learning`
 - [x] Сохраняется `last_seen_at`
-- [ ] После чтения считается `DifficultyRatio`
-- [ ] `current_level_score` пользователя пересчитывается по метрикам чтения
+- [x] После чтения считается `DifficultyRatio`
+- [x] `current_level_score` пользователя пересчитывается по метрикам чтения
 - [ ] Добавлена логика перехода слов в `mastered`
 
 ### База данных
@@ -108,7 +108,7 @@
 - [x] Mini App показывает адаптированный текст
 - [x] Клик по слову возвращает контекстный перевод и транскрипцию
 - [x] Незнакомые слова сохраняются в БД
-- [ ] Уровень пользователя пересчитывается после чтения
+- [x] Уровень пользователя пересчитывается после чтения
 
 ## Текущее состояние реализации
 
@@ -126,25 +126,26 @@
 - `TelegramAuthModule`: проверка Telegram Mini App `initData` через HMAC, извлечение текущего Telegram user, whitelist check.
 - `MeModule`: защищённые `GET /api/me` и `PATCH /api/me/level`.
 - `TranslationModule`: защищённый `POST /api/translate-word`, word analysis через OpenAI adapter, upsert `user_words`, возврат `learningWordsCount`.
+- `ReadingSessionsModule`: защищённый `POST /api/reading-sessions/finish`, запись `reading_stats`, пересчёт уровня по `DifficultyRatio` без времени чтения.
 - `mini-app/`: Vite / React / Tailwind frontend skeleton, Telegram initData header, client API для `GET /api/me` и `GET /api/articles/:id`, RTL экран чтения.
 
 Ограничения текущей реализации:
 
 - URL и Telegram channel jobs пока ставятся в очередь, но extraction не подключен.
 - Bot пока отправляет plain URL или article id, а не Telegram Mini App keyboard button.
-- Mini App пока не реализует finish-reading flow и word mastery logic.
+- Mini App пока не реализует word mastery logic.
 - Static runtime strings в `src` должны оставаться English-only; русский язык допустим в документации и AI translation fields.
 
 ## Следующий шаг
 
-Следующий выбранный шаг: реализовать finish-reading flow без учета времени чтения.
+Следующий выбранный шаг: реализовать word mastery/exposures logic.
 
 Цель шага:
 
-- добавить backend endpoint завершения чтения под Mini App auth;
-- считать `DifficultyRatio = translationRequestsCount / generatedWordsCount`;
-- обновлять `current_level_score` без использования времени чтения;
-- подготовить frontend кнопку завершения чтения и отправку статистики.
+- при завершении чтения учитывать, какие learning words были показаны в тексте;
+- увеличивать `successful_exposures` для слов, по которым не запрашивали перевод;
+- оставлять exposure без повышения, если пользователь запросил перевод;
+- переводить слово в `mastered` после 10 успешных exposures.
 
 ## 1. Общие сведения и архитектура
 
@@ -424,10 +425,16 @@ Backend нормализует слово до базовой формы пер�
 По кнопке `Завершить` считается:
 
 ```text
-DifficultyRatio = clicks_on_translation / total_words
+DifficultyRatio = translationRequestsCount / generatedWordsCount
 ```
 
-После этого backend обновляет `current_level_score` пользователя.
+После этого backend обновляет `current_level_score` пользователя:
+
+- `DifficultyRatio <= 0.05`: уровень повышается на `25`;
+- `DifficultyRatio >= 0.25`: уровень понижается на `25`;
+- иначе уровень не меняется;
+- итоговый уровень ограничен диапазоном `100..1000`;
+- время чтения не используется.
 
 ## 4. Схема базы данных
 

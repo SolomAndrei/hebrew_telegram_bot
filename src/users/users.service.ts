@@ -1,5 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import type {
+  FinishReadingSessionRequest,
+  FinishReadingSessionResponse,
+} from '../mini-app/mini-app-api.contracts';
 import {
   LearningWord,
   UpsertLearningWordInput,
@@ -10,6 +14,9 @@ import {
 
 export const MIN_CURRENT_LEVEL_SCORE = 100;
 export const MAX_CURRENT_LEVEL_SCORE = 1000;
+const LEVEL_SCORE_STEP = 25;
+const EASY_DIFFICULTY_RATIO = 0.05;
+const HARD_DIFFICULTY_RATIO = 0.25;
 
 export type UserProfile = {
   telegramId: number;
@@ -53,6 +60,41 @@ export class UsersService {
     return this.getLearningWordsCount(input.userId);
   }
 
+  async finishReadingSession(
+    user: User,
+    input: FinishReadingSessionRequest,
+  ): Promise<FinishReadingSessionResponse> {
+    await this.usersRepository.saveReadingStats({
+      userId: user.id,
+      articleId: input.articleId,
+      generatedWordsCount: input.generatedWordsCount,
+      translationRequestsCount: input.translationRequestsCount,
+    });
+
+    const nextLevelScore = this.calculateNextLevelScore(
+      user.currentLevelScore,
+      input.generatedWordsCount,
+      input.translationRequestsCount,
+    );
+
+    if (nextLevelScore === user.currentLevelScore) {
+      return {
+        currentLevelScore: user.currentLevelScore,
+        levelChanged: false,
+      };
+    }
+
+    const updatedUser = await this.usersRepository.updateLevelByTelegramId(
+      user.telegramId,
+      nextLevelScore,
+    );
+
+    return {
+      currentLevelScore: updatedUser.currentLevelScore,
+      levelChanged: true,
+    };
+  }
+
   async updateLevelByTelegramId(
     telegramId: number,
     currentLevelScore: number,
@@ -68,5 +110,31 @@ export class UsersService {
       currentLevelScore: user.currentLevelScore,
       learningWordsCount,
     };
+  }
+
+  private calculateNextLevelScore(
+    currentLevelScore: number,
+    generatedWordsCount: number,
+    translationRequestsCount: number,
+  ): number {
+    const difficultyRatio =
+      translationRequestsCount / Math.max(generatedWordsCount, 1);
+
+    if (difficultyRatio <= EASY_DIFFICULTY_RATIO) {
+      return this.clampLevelScore(currentLevelScore + LEVEL_SCORE_STEP);
+    }
+
+    if (difficultyRatio >= HARD_DIFFICULTY_RATIO) {
+      return this.clampLevelScore(currentLevelScore - LEVEL_SCORE_STEP);
+    }
+
+    return currentLevelScore;
+  }
+
+  private clampLevelScore(currentLevelScore: number): number {
+    return Math.min(
+      MAX_CURRENT_LEVEL_SCORE,
+      Math.max(MIN_CURRENT_LEVEL_SCORE, currentLevelScore),
+    );
   }
 }

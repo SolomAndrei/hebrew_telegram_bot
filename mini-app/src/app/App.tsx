@@ -47,6 +47,22 @@ type TranslationState =
       message: string;
     };
 
+type FinishState =
+  | {
+      status: 'idle';
+    }
+  | {
+      status: 'submitting';
+    }
+  | {
+      status: 'completed';
+      levelChanged: boolean;
+    }
+  | {
+      status: 'error';
+      message: string;
+    };
+
 type TextToken = {
   text: string;
   isWord: boolean;
@@ -140,16 +156,31 @@ function ReadingScreen({
   articleId: string;
   me: MeResponse;
 }) {
+  const [currentLevelScore, setCurrentLevelScore] = useState(
+    me.currentLevelScore,
+  );
   const [learningWordsCount, setLearningWordsCount] = useState(
     me.learningWordsCount,
   );
+  const [translationRequestsCount, setTranslationRequestsCount] = useState(0);
   const [translation, setTranslation] = useState<TranslationState>({
     status: 'closed',
+  });
+  const [finishState, setFinishState] = useState<FinishState>({
+    status: 'idle',
   });
   const paragraphs = article.adaptedText
     .split(/\n+/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
+  const generatedWordsCount = Math.max(
+    paragraphs.reduce(
+      (count, paragraph) =>
+        count + tokenizeText(paragraph).filter((token) => token.isWord).length,
+      0,
+    ),
+    1,
+  );
 
   async function handleWordClick(word: string, sentenceContext: string) {
     setTranslation({
@@ -165,6 +196,7 @@ function ReadingScreen({
       });
 
       setLearningWordsCount(result.learningWordsCount);
+      setTranslationRequestsCount((count) => count + 1);
       setTranslation({
         status: 'loaded',
         word,
@@ -179,6 +211,29 @@ function ReadingScreen({
     }
   }
 
+  async function handleFinishReading() {
+    setFinishState({ status: 'submitting' });
+
+    try {
+      const result = await apiClient.finishReadingSession({
+        articleId,
+        generatedWordsCount,
+        translationRequestsCount,
+      });
+
+      setCurrentLevelScore(result.currentLevelScore);
+      setFinishState({
+        status: 'completed',
+        levelChanged: result.levelChanged,
+      });
+    } catch {
+      setFinishState({
+        status: 'error',
+        message: 'Unable to finish reading.',
+      });
+    }
+  }
+
   return (
     <>
       <article className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -188,10 +243,13 @@ function ReadingScreen({
               Article level {article.difficultyScore}
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1">
-              Your level {me.currentLevelScore}
+              Your level {currentLevelScore}
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1">
               Learning words {learningWordsCount}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1">
+              Translation requests {translationRequestsCount}
             </span>
           </div>
 
@@ -231,6 +289,20 @@ function ReadingScreen({
             </p>
           ))}
         </div>
+
+        <footer className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5">
+          <button
+            className="rounded-2xl bg-slate-950 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+            type="button"
+            disabled={finishState.status === 'submitting'}
+            onClick={() => void handleFinishReading()}
+          >
+            {finishState.status === 'submitting'
+              ? 'Finishing...'
+              : 'Finish reading'}
+          </button>
+          <FinishReadingStatus state={finishState} />
+        </footer>
       </article>
 
       <TranslationSheet
@@ -317,6 +389,23 @@ function TranslationSheet({
         ) : null}
       </section>
     </div>
+  );
+}
+
+function FinishReadingStatus({ state }: { state: FinishState }) {
+  if (state.status === 'idle' || state.status === 'submitting') {
+    return null;
+  }
+
+  if (state.status === 'error') {
+    return <p className="text-sm text-red-700">{state.message}</p>;
+  }
+
+  return (
+    <p className="text-sm text-slate-600">
+      Reading session saved.
+      {state.levelChanged ? ' Your level was updated.' : ''}
+    </p>
   );
 }
 

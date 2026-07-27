@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../../database/supabase.service';
 import type {
   LearningWord,
+  SaveReadingStatsInput,
   UpsertLearningWordInput,
   User,
   UsersRepositoryPort,
@@ -114,6 +115,21 @@ export class SupabaseUsersRepositoryAdapter implements UsersRepositoryPort {
           onConflict: 'user_id,lemma',
         },
       );
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async saveReadingStats(input: SaveReadingStatsInput): Promise<void> {
+    const { error } = await this.supabaseService.client
+      .from('reading_stats')
+      .insert({
+        user_id: input.userId,
+        article_id: input.articleId,
+        generated_words_count: input.generatedWordsCount,
+        translation_requests_count: input.translationRequestsCount,
+      });
 
     if (error) {
       throw error;

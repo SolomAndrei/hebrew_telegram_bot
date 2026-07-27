@@ -1,5 +1,7 @@
 import type {
   ArticleForReadingResponse,
+  FinishReadingSessionRequest,
+  FinishReadingSessionResponse,
   MeResponse,
   TranslateWordRequest,
   TranslateWordResponse,
@@ -23,6 +25,9 @@ export type ApiClient = {
   translateWord: (
     request: TranslateWordRequest,
   ) => Promise<TranslateWordResponse>;
+  finishReadingSession: (
+    request: FinishReadingSessionRequest,
+  ) => Promise<FinishReadingSessionResponse>;
 };
 
 export function createApiClient(initData: string): ApiClient {
@@ -38,6 +43,15 @@ export function createApiClient(initData: string): ApiClient {
         method: 'POST',
         body: JSON.stringify(request),
       }),
+    finishReadingSession: (request) =>
+      requestJson<FinishReadingSessionResponse>(
+        '/reading-sessions/finish',
+        initData,
+        {
+          method: 'POST',
+          body: JSON.stringify(request),
+        },
+      ),
   };
 }
 

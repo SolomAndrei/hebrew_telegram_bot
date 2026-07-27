@@ -17,12 +17,20 @@ export type UpsertLearningWordInput = {
   partOfSpeech: string;
 };
 
+export type SaveReadingStatsInput = {
+  userId: string;
+  articleId: string;
+  generatedWordsCount: number;
+  translationRequestsCount: number;
+};
+
 export interface UsersRepositoryPort {
   findOrCreateByTelegramId(telegramId: number): Promise<User>;
   getProfileByTelegramId(telegramId: number): Promise<User>;
   getLearningWords(userId: string): Promise<LearningWord[]>;
   getLearningWordsCount(userId: string): Promise<number>;
   upsertLearningWord(input: UpsertLearningWordInput): Promise<void>;
+  saveReadingStats(input: SaveReadingStatsInput): Promise<void>;
   updateLevelByTelegramId(
     telegramId: number,
     currentLevelScore: number,
