@@ -2,7 +2,7 @@
 
 Документ нужен как постоянная точка опоры по проекту: здесь хранится техническое задание, архитектура, критерии приемки и чеклист выполненных работ.
 
-Последнее обновление: 2026-07-27.
+Последнее обновление: 2026-07-28.
 
 ## Статус работ
 
@@ -15,7 +15,7 @@
 - [x] Настроены переменные окружения
 - [x] Подключен Supabase / PostgreSQL
 - [x] Подключен OpenAI API
-- [ ] Добавлен общий логгер и обработка ошибок
+- [x] Добавлен общий логгер и обработка ошибок
 
 ### Приватность и доступ
 
@@ -34,7 +34,7 @@
 - [x] Бот принимает прямые ссылки на новости и ставит их в очередь
 - [x] Бот принимает сырой текст на иврите
 - [x] Бот запускает адаптацию сырого ивритского текста
-- [x] Бот отправляет article id или ссылку для открытия будущего Mini App route
+- [x] Бот отправляет Telegram Mini App inline button для открытия статьи, с fallback article id/plain URL
 - [x] Добавлен backend API для чтения и изменения уровня пользователя
 
 ### Очередь и защита от нагрузки
@@ -43,15 +43,15 @@
 - [x] Подготовлена SQL-миграция `jobs` для Postgres-backed очереди
 - [x] Добавлен `JobsModule` с портом очереди и Supabase adapter
 - [x] Реализован worker обработки jobs
-- [ ] Добавлены дневные бюджетные лимиты LLM jobs на пользователя
+- [x] Добавлены дневные бюджетные лимиты LLM jobs на пользователя
 
 ### Инжест источников
 
-- [ ] Реализован парсинг обычных URL через Cheerio / RSS
-- [ ] Реализован парсинг публичных Telegram-постов или принято решение отложить
-- [ ] Добавлены дефолтные RSS-источники
-- [ ] Настроена cron-задача для автоматического сбора новостей
-- [ ] Сырой текст нормализуется перед отправкой в LLM
+- [x] Реализован парсинг обычных URL через Cheerio / RSS
+- [x] Реализован парсинг публичных Telegram-постов
+- [x] Добавлены дефолтные RSS-источники
+- [x] Настроена cron-задача для автоматического сбора новостей
+- [x] Сырой текст нормализуется перед отправкой в LLM
 
 ### Адаптация текста через LLM
 
@@ -61,7 +61,7 @@
 - [x] Реализован Validator Prompt
 - [x] При `is_valid = true` статья сохраняется
 - [x] При `is_valid = false` выполняется повторная генерация до 2 попыток
-- [ ] Реализован fallback, если адаптация не прошла проверку
+- [x] Реализован fallback, если адаптация не прошла проверку
 - [x] В адаптацию подмешиваются сложные слова пользователя
 
 ### Telegram Mini App
@@ -78,6 +78,7 @@
 - [x] Клик по слову открывает Bottom Sheet
 - [x] Bottom Sheet показывает перевод, транскрипцию, лемму и альтернативы
 - [x] Кнопка завершения чтения отправляет статистику без учета времени чтения
+- [x] Bot reply открывает статью через real Telegram Mini App button при настроенном Mini App URL
 
 ### Словарь и прогресс
 
@@ -86,7 +87,7 @@
 - [x] Сохраняется `last_seen_at`
 - [x] После чтения считается `DifficultyRatio`
 - [x] `current_level_score` пользователя пересчитывается по метрикам чтения
-- [ ] Добавлена логика перехода слов в `mastered`
+- [x] Добавлена логика перехода слов в `mastered`
 
 ### База данных
 
@@ -101,7 +102,7 @@
 
 - [x] Чужой Telegram ID не получает доступ к боту
 - [x] Mini App не принимает невалидный `initData`
-- [ ] Бот принимает ссылку на новость и запускает адаптацию
+- [x] Бот принимает ссылку на новость и запускает адаптацию
 - [x] Бот принимает сырой ивритский текст и запускает адаптацию
 - [x] Адаптированный текст проходит авто-проверку
 - [x] Статья сохраняется в БД
@@ -112,40 +113,37 @@
 
 ## Текущее состояние реализации
 
-На 2026-07-27 backend реализован как NestJS + Fastify приложение с глобальным prefix `/api`.
+На 2026-07-28 backend реализован как NestJS + Fastify приложение с глобальным prefix `/api`, глобальным exception filter и безопасным форматом HTTP error responses.
 
 Готово:
 
 - `AccessModule`: whitelist по `ALLOWED_TELEGRAM_IDS` и rate limit для Telegram user messages.
-- `BotModule`: grammY bot в polling/webhook режимах, webhook endpoint, source classification, постановка jobs в очередь.
-- `JobsModule`: Postgres-backed queue через Supabase, RPC claim/complete/fail, worker обработки jobs.
-- `SourcesModule`: классификация raw Hebrew text, URL, public Telegram channel refs; URL/Telegram extraction adapters пока являются портами без реализации.
-- `UsersModule`: создание/поиск пользователя, чтение learning words, счётчик learning words, обновление `current_level_score`.
-- `AdaptationModule`: OpenAI adapter, JSON response mode, prompt адаптации, validator prompt, retry до 2 повторных генераций.
+- `BotModule`: grammY bot в polling/webhook режимах, webhook endpoint, source classification, постановка jobs в очередь, article reply с Telegram Mini App inline button и fallback.
+- `JobsModule`: Postgres-backed queue через Supabase, RPC claim/complete/fail, worker обработки jobs, дневной лимит LLM-heavy jobs на пользователя, RSS cron enqueue с deduplication key.
+- `SourcesModule`: классификация raw Hebrew text, URL, public Telegram channel refs; default Hebrew RSS sources; URL extraction через Cheerio adapter; public Telegram channel extraction через web adapter; нормализация source text перед LLM.
+- `UsersModule`: создание/поиск пользователя, чтение learning words, счётчик learning words, exposures/mastered updates, обновление `current_level_score`.
+- `AdaptationModule`: OpenAI adapter, JSON response mode, prompt адаптации, validator prompt, retry до 2 повторных генераций, typed fallback если адаптация не прошла проверку.
 - `ArticlesModule`: сохранение адаптированных статей в таблицу `articles`, защищённое чтение статьи по `id` для текущего пользователя.
 - `TelegramAuthModule`: проверка Telegram Mini App `initData` через HMAC, извлечение текущего Telegram user, whitelist check.
 - `MeModule`: защищённые `GET /api/me` и `PATCH /api/me/level`.
 - `TranslationModule`: защищённый `POST /api/translate-word`, word analysis через OpenAI adapter, upsert `user_words`, возврат `learningWordsCount`.
-- `ReadingSessionsModule`: защищённый `POST /api/reading-sessions/finish`, запись `reading_stats`, пересчёт уровня по `DifficultyRatio` без времени чтения.
+- `ReadingSessionsModule`: защищённый `POST /api/reading-sessions/finish`, запись `reading_stats`, пересчёт уровня по `DifficultyRatio` без времени чтения, successful exposures и перевод слов в `mastered`.
 - `mini-app/`: Vite / React / Tailwind frontend skeleton, Telegram initData header, client API для `GET /api/me` и `GET /api/articles/:id`, RTL экран чтения.
 
 Ограничения текущей реализации:
 
-- URL и Telegram channel jobs пока ставятся в очередь, но extraction не подключен.
-- Bot пока отправляет plain URL или article id, а не Telegram Mini App keyboard button.
-- Mini App пока не реализует word mastery logic.
 - Static runtime strings в `src` должны оставаться English-only; русский язык допустим в документации и AI translation fields.
 
 ## Следующий шаг
 
-Следующий выбранный шаг: реализовать word mastery/exposures logic.
+Следующий выбранный шаг: отключить добавление бота в группы в BotFather.
 
 Цель шага:
 
-- при завершении чтения учитывать, какие learning words были показаны в тексте;
-- увеличивать `successful_exposures` для слов, по которым не запрашивали перевод;
-- оставлять exposure без повышения, если пользователь запросил перевод;
-- переводить слово в `mastered` после 10 успешных exposures.
+- открыть настройки бота в BotFather;
+- выключить `Allow Groups`;
+- проверить, что бот не может быть добавлен в групповые чаты;
+- отметить ручной deployment/security пункт как выполненный.
 
 ## 1. Общие сведения и архитектура
 
@@ -555,7 +553,18 @@ Response:
 {
   "articleId": "string",
   "generatedWordsCount": 100,
-  "translationRequestsCount": 12
+  "translationRequestsCount": 12,
+  "translatedLemmas": ["string"]
+}
+```
+
+Response:
+
+```json
+{
+  "currentLevelScore": 325,
+  "levelChanged": true,
+  "learningWordsCount": 8
 }
 ```
 

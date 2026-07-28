@@ -11,6 +11,17 @@ export type AdaptedTextResult = AdaptedTextDraft & {
   isValidated: boolean;
 };
 
+export class AdaptationValidationFailedError extends Error {
+  constructor(readonly reason: string | undefined) {
+    super(
+      reason
+        ? `Adaptation validation failed: ${reason}`
+        : 'Adaptation validation failed',
+    );
+    this.name = AdaptationValidationFailedError.name;
+  }
+}
+
 @Injectable()
 export class AdaptationService {
   constructor(
@@ -21,6 +32,7 @@ export class AdaptationService {
   async adaptRawText(input: AdaptRawTextInput): Promise<AdaptedTextResult> {
     const maxAttempts = 3;
     let lastDraft: AdaptedTextDraft | undefined;
+    let lastValidationReason: string | undefined;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const draft = await this.textAdapter.adaptRawText(input);
@@ -37,15 +49,14 @@ export class AdaptationService {
           isValidated: true,
         };
       }
+
+      lastValidationReason = validation.reason;
     }
 
     if (!lastDraft) {
       throw new Error('Failed to generate adapted text');
     }
 
-    return {
-      ...lastDraft,
-      isValidated: false,
-    };
+    throw new AdaptationValidationFailedError(lastValidationReason);
   }
 }

@@ -9,12 +9,20 @@ export type EnqueueTelegramJobInput = {
   type: JobType;
   telegramUserId: number;
   telegramChatId: number;
-  telegramUpdateId: number;
+  telegramUpdateId?: number;
+  deduplicationKey?: string;
   payload: Record<string, unknown>;
 };
 
 export type EnqueuedJob = {
   id: string;
+  wasCreated: boolean;
+};
+
+export type CountTelegramJobsInput = {
+  telegramUserId: number;
+  jobTypes: JobType[];
+  createdAfter: Date;
 };
 
 export type QueuedJob = {
@@ -22,13 +30,14 @@ export type QueuedJob = {
   type: JobType;
   telegramUserId: number;
   telegramChatId: number;
-  telegramUpdateId: number;
+  telegramUpdateId?: number;
   payload: Record<string, unknown>;
   attempts: number;
 };
 
 export interface JobQueuePort {
   enqueue(input: EnqueueTelegramJobInput): Promise<EnqueuedJob>;
+  countTelegramJobsCreatedSince(input: CountTelegramJobsInput): Promise<number>;
   claimNext(): Promise<QueuedJob | null>;
   complete(jobId: string): Promise<void>;
   fail(jobId: string, error: string): Promise<void>;

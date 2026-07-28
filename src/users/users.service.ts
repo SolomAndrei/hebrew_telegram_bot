@@ -60,6 +60,28 @@ export class UsersService {
     return this.getLearningWordsCount(input.userId);
   }
 
+  async updateExposuresAfterReading(
+    userId: string,
+    adaptedText: string,
+    translatedLemmas: string[],
+  ): Promise<number> {
+    const learningWords = await this.getLearningWords(userId);
+    const translatedLemmaSet = new Set(translatedLemmas);
+    const shownLemmas = learningWords
+      .map((word) => word.lemma)
+      .filter(
+        (lemma) =>
+          !translatedLemmaSet.has(lemma) && this.containsLemma(adaptedText, lemma),
+      );
+
+    await this.usersRepository.updateLearningWordExposures({
+      userId,
+      lemmas: shownLemmas,
+    });
+
+    return this.getLearningWordsCount(userId);
+  }
+
   async finishReadingSession(
     user: User,
     input: FinishReadingSessionRequest,
@@ -81,6 +103,7 @@ export class UsersService {
       return {
         currentLevelScore: user.currentLevelScore,
         levelChanged: false,
+        learningWordsCount: await this.getLearningWordsCount(user.id),
       };
     }
 
@@ -92,6 +115,7 @@ export class UsersService {
     return {
       currentLevelScore: updatedUser.currentLevelScore,
       levelChanged: true,
+      learningWordsCount: await this.getLearningWordsCount(user.id),
     };
   }
 
@@ -136,5 +160,9 @@ export class UsersService {
       MAX_CURRENT_LEVEL_SCORE,
       Math.max(MIN_CURRENT_LEVEL_SCORE, currentLevelScore),
     );
+  }
+
+  private containsLemma(text: string, lemma: string): boolean {
+    return text.includes(lemma);
   }
 }

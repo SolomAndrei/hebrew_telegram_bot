@@ -24,12 +24,20 @@ export type SaveReadingStatsInput = {
   translationRequestsCount: number;
 };
 
+export type UpdateLearningWordExposuresInput = {
+  userId: string;
+  lemmas: string[];
+};
+
 export interface UsersRepositoryPort {
   findOrCreateByTelegramId(telegramId: number): Promise<User>;
   getProfileByTelegramId(telegramId: number): Promise<User>;
   getLearningWords(userId: string): Promise<LearningWord[]>;
   getLearningWordsCount(userId: string): Promise<number>;
   upsertLearningWord(input: UpsertLearningWordInput): Promise<void>;
+  updateLearningWordExposures(
+    input: UpdateLearningWordExposuresInput,
+  ): Promise<void>;
   saveReadingStats(input: SaveReadingStatsInput): Promise<void>;
   updateLevelByTelegramId(
     telegramId: number,

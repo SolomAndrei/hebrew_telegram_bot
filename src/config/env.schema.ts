@@ -34,8 +34,22 @@ const envSchema = z
       .int()
       .positive()
       .default(100),
+    TELEGRAM_DAILY_LLM_JOB_LIMIT: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(20),
     JOBS_WORKER_ENABLED: booleanStringSchema.optional(),
+    RSS_CRON_ENABLED: booleanStringSchema.optional(),
+    RSS_CRON_INTERVAL_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(60),
+    RSS_CRON_TARGET_TELEGRAM_ID: z.coerce.number().int().positive().optional(),
+    RSS_CRON_TARGET_CHAT_ID: z.coerce.number().int().optional(),
     PUBLIC_API_URL: z.url().optional(),
+    PUBLIC_MINI_APP_URL: z.url().optional(),
     ALLOWED_TELEGRAM_IDS: telegramIdsSchema,
     OPENAI_API_KEY: z.string().optional(),
     SUPABASE_URL: z.url(),
@@ -48,6 +62,7 @@ const envSchema = z
       (env.NODE_ENV === 'production' ? 'webhook' : 'polling'),
     JOBS_WORKER_ENABLED:
       env.JOBS_WORKER_ENABLED ?? env.NODE_ENV === 'production',
+    RSS_CRON_ENABLED: env.RSS_CRON_ENABLED ?? false,
   }))
   .superRefine((env, ctx) => {
     if (env.TELEGRAM_BOT_MODE !== 'webhook') {

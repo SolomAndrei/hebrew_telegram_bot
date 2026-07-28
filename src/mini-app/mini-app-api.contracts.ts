@@ -35,9 +35,11 @@ export type FinishReadingSessionRequest = {
   articleId: string;
   generatedWordsCount: number;
   translationRequestsCount: number;
+  translatedLemmas: string[];
 };
 
 export type FinishReadingSessionResponse = {
   currentLevelScore: number;
   levelChanged: boolean;
+  learningWordsCount: number;
 };

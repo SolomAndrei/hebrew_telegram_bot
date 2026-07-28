@@ -1,5 +1,5 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { IsInt, IsUUID, Min } from 'class-validator';
+import { IsArray, IsInt, IsString, IsUUID, Min } from 'class-validator';
 
 import type {
   FinishReadingSessionRequest,
@@ -21,6 +21,10 @@ class FinishReadingSessionDto implements FinishReadingSessionRequest {
   @IsInt()
   @Min(0)
   translationRequestsCount!: number;
+
+  @IsArray()
+  @IsString({ each: true })
+  translatedLemmas!: string[];
 }
 
 @Controller('reading-sessions')

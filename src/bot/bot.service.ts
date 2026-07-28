@@ -6,12 +6,13 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Bot } from 'grammy';
+import { Bot, InlineKeyboard } from 'grammy';
 
 import { RateLimitService } from '../access/rate-limit.service';
 import { TelegramAccessService } from '../access/telegram-access.service';
 import { Env } from '../config/env.schema';
 import { JobsService } from '../jobs/jobs.service';
+import { DefaultRssService } from '../sources/default-rss.service';
 import type { JobType } from '../jobs/ports/job-queue.port';
 import { SourceClassifierService } from '../sources/source-classifier.service';
 import type { SubmittedSource } from '../sources/source.types';
@@ -27,6 +28,7 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     private readonly telegramAccessService: TelegramAccessService,
     private readonly rateLimitService: RateLimitService,
     private readonly jobsService: JobsService,
+    private readonly defaultRssService: DefaultRssService,
     private readonly sourceClassifierService: SourceClassifierService,
   ) {
     this.bot = new Bot(configService.get('BOT_TOKEN', { infer: true }));
@@ -70,6 +72,33 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     await this.bot.api.sendMessage(chatId, text);
   }
 
+  async sendArticleReply(input: {
+    chatId: number;
+    title: string;
+    text: string;
+    articleId: string;
+    articleUrl?: string;
+  }): Promise<void> {
+    const message = this.formatArticleReply(
+      input.title,
+      input.text,
+      input.articleId,
+      input.articleUrl,
+    );
+
+    if (!input.articleUrl) {
+      await this.sendMessage(input.chatId, message);
+      return;
+    }
+
+    await this.bot.api.sendMessage(input.chatId, message, {
+      reply_markup: new InlineKeyboard().webApp(
+        'Open in Mini App',
+        input.articleUrl,
+      ),
+    });
+  }
+
   private registerHandlers(): void {
     this.bot.catch((error) => {
       this.logger.error('Telegram bot handler failed', error.error);
@@ -100,8 +129,58 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.command('start', async (ctx) => {
       await ctx.reply(
-        'Welcome. Send Hebrew text or a news link.',
+        'Welcome. Send Hebrew text, a news link, or /news.',
       );
+    });
+
+    this.bot.command('news', async (ctx) => {
+      if (!ctx.from || !ctx.chat) {
+        return;
+      }
+
+      let item: Awaited<ReturnType<DefaultRssService['getLatestItem']>>;
+
+      try {
+        item = await this.defaultRssService.getLatestItem();
+      } catch (error) {
+        this.logger.warn('Failed to fetch default RSS news item', error);
+        await ctx.reply('Could not fetch news right now. Try again later.');
+        return;
+      }
+
+      try {
+        const budget = await this.jobsService.checkDailyLlmJobBudget(
+          ctx.from.id,
+        );
+
+        if (!budget.allowed) {
+          await ctx.reply(
+            `Daily adaptation limit reached (${budget.used}/${budget.limit}). Try again tomorrow.`,
+          );
+          return;
+        }
+
+        await this.jobsService.enqueueTelegramJob({
+          type: 'source_url',
+          telegramUserId: ctx.from.id,
+          telegramChatId: ctx.chat.id,
+          telegramUpdateId: ctx.update.update_id,
+          payload: {
+            source: {
+              type: 'url',
+              url: item.url,
+            },
+            rssItem: item,
+            update: ctx.update as unknown as Record<string, unknown>,
+          },
+        });
+      } catch (error) {
+        this.logger.error('Failed to enqueue default RSS news job', error);
+        await ctx.reply('The queue is temporarily unavailable. Try again later.');
+        return;
+      }
+
+      await ctx.reply(`Latest news from ${item.sourceName} has been queued.`);
     });
 
     this.bot.on('message', async (ctx) => {
@@ -126,6 +205,17 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       }
 
       try {
+        const budget = await this.jobsService.checkDailyLlmJobBudget(
+          ctx.from.id,
+        );
+
+        if (!budget.allowed) {
+          await ctx.reply(
+            `Daily adaptation limit reached (${budget.used}/${budget.limit}). Try again tomorrow.`,
+          );
+          return;
+        }
+
         await this.jobsService.enqueueTelegramJob({
           type: this.getJobType(source),
           telegramUserId: ctx.from.id,
@@ -167,5 +257,23 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     }
 
     return 'Send Hebrew text, a URL, or a public Telegram channel link.';
+  }
+
+  private formatArticleReply(
+    title: string,
+    text: string,
+    articleId: string,
+    articleUrl?: string,
+  ): string {
+    const maxTextLength = 3000;
+    const visibleText =
+      text.length > maxTextLength
+        ? `${text.slice(0, maxTextLength)}...`
+        : text;
+    const articleReference = articleUrl
+      ? `Open in Mini App: ${articleUrl}`
+      : `Article ID: ${articleId}`;
+
+    return `${title}\n\n${visibleText}\n\n${articleReference}`;
   }
 }

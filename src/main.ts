@@ -8,6 +8,7 @@ import {
 } from '@nestjs/platform-fastify';
 
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -22,6 +23,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port, '0.0.0.0');
@@ -29,4 +31,11 @@ async function bootstrap() {
   Logger.log(`API is running on http://localhost:${port}/api`, 'Bootstrap');
 }
 
-bootstrap();
+void bootstrap().catch((error: unknown) => {
+  Logger.error(
+    'Failed to bootstrap API',
+    error instanceof Error ? error.stack : String(error),
+    'Bootstrap',
+  );
+  process.exitCode = 1;
+});

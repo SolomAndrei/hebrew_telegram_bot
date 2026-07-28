@@ -163,6 +163,7 @@ function ReadingScreen({
     me.learningWordsCount,
   );
   const [translationRequestsCount, setTranslationRequestsCount] = useState(0);
+  const [translatedLemmas, setTranslatedLemmas] = useState<string[]>([]);
   const [translation, setTranslation] = useState<TranslationState>({
     status: 'closed',
   });
@@ -197,6 +198,7 @@ function ReadingScreen({
 
       setLearningWordsCount(result.learningWordsCount);
       setTranslationRequestsCount((count) => count + 1);
+      setTranslatedLemmas((lemmas) => addUniqueValue(lemmas, result.lemma));
       setTranslation({
         status: 'loaded',
         word,
@@ -219,9 +221,11 @@ function ReadingScreen({
         articleId,
         generatedWordsCount,
         translationRequestsCount,
+        translatedLemmas,
       });
 
       setCurrentLevelScore(result.currentLevelScore);
+      setLearningWordsCount(result.learningWordsCount);
       setFinishState({
         status: 'completed',
         levelChanged: result.levelChanged,
@@ -454,6 +458,14 @@ function getSentenceContext(paragraph: string, word: string): string {
       : paragraph.length;
 
   return paragraph.slice(sentenceStart + 1, sentenceEnd + 1).trim();
+}
+
+function addUniqueValue(values: string[], nextValue: string): string[] {
+  if (values.includes(nextValue)) {
+    return values;
+  }
+
+  return [...values, nextValue];
 }
 
 function getArticleIdFromPath(): string | undefined {

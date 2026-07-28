@@ -19,9 +19,21 @@ export class ReadingSessionsService {
     input: FinishReadingSessionRequest,
   ): Promise<FinishReadingSessionResponse> {
     const user = await this.usersService.findOrCreateByTelegramId(telegramId);
+    const article = await this.articlesService.getArticleForReading(
+      user.id,
+      input.articleId,
+    );
+    const result = await this.usersService.finishReadingSession(user, input);
+    const learningWordsCount =
+      await this.usersService.updateExposuresAfterReading(
+        user.id,
+        article.adaptedText,
+        input.translatedLemmas,
+      );
 
-    await this.articlesService.getArticleForReading(user.id, input.articleId);
-
-    return this.usersService.finishReadingSession(user, input);
+    return {
+      ...result,
+      learningWordsCount,
+    };
   }
 }

@@ -4,6 +4,7 @@ import { SupabaseService } from '../../database/supabase.service';
 import type {
   LearningWord,
   SaveReadingStatsInput,
+  UpdateLearningWordExposuresInput,
   UpsertLearningWordInput,
   User,
   UsersRepositoryPort,
@@ -21,6 +22,11 @@ type LearningWordRow = {
 
 type ExistingLearningWordRow = {
   translation_requests: number;
+};
+
+type LearningWordExposureRow = {
+  lemma: string;
+  successful_exposures: number;
 };
 
 @Injectable()
@@ -119,6 +125,45 @@ export class SupabaseUsersRepositoryAdapter implements UsersRepositoryPort {
     if (error) {
       throw error;
     }
+  }
+
+  async updateLearningWordExposures(
+    input: UpdateLearningWordExposuresInput,
+  ): Promise<void> {
+    if (input.lemmas.length === 0) {
+      return;
+    }
+
+    const { data, error } = await this.supabaseService.client
+      .from('user_words')
+      .select('lemma, successful_exposures')
+      .eq('user_id', input.userId)
+      .eq('status', 'learning')
+      .in('lemma', input.lemmas)
+      .returns<LearningWordExposureRow[]>();
+
+    if (error) {
+      throw error;
+    }
+
+    await Promise.all(
+      data.map(async (row) => {
+        const successfulExposures = row.successful_exposures + 1;
+        const { error: updateError } = await this.supabaseService.client
+          .from('user_words')
+          .update({
+            successful_exposures: successfulExposures,
+            status: successfulExposures >= 10 ? 'mastered' : 'learning',
+            last_seen_at: new Date().toISOString(),
+          })
+          .eq('user_id', input.userId)
+          .eq('lemma', row.lemma);
+
+        if (updateError) {
+          throw updateError;
+        }
+      }),
+    );
   }
 
   async saveReadingStats(input: SaveReadingStatsInput): Promise<void> {
