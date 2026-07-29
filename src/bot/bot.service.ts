@@ -42,8 +42,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     this.registerHandlers();
   }
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
     if (this.botMode === 'webhook') {
+      await this.bot.init();
       this.logger.log('Telegram bot webhook mode enabled');
       return;
     }
