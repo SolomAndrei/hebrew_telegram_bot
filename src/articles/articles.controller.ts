@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Inject,
   UseGuards,
 } from '@nestjs/common';
 
@@ -17,7 +18,9 @@ import { ArticlesService } from './articles.service';
 @UseGuards(TelegramInitDataGuard)
 export class ArticlesController {
   constructor(
+    @Inject(ArticlesService)
     private readonly articlesService: ArticlesService,
+    @Inject(UsersService)
     private readonly usersService: UsersService,
   ) {}
 

@@ -37,15 +37,21 @@ export class JobsWorker {
   private isProcessing = false;
 
   constructor(
+    @Inject(forwardRef(() => JobsService))
     private readonly jobsService: JobsService,
+    @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => ArticlesService))
     private readonly articlesService: ArticlesService,
+    @Inject(forwardRef(() => AdaptationService))
     private readonly adaptationService: AdaptationService,
+    @Inject(forwardRef(() => HebrewTextValidatorService))
     private readonly hebrewTextValidator: HebrewTextValidatorService,
     @Inject(URL_CONTENT_EXTRACTOR_PORT)
     private readonly urlContentExtractor: UrlContentExtractorPort,
     @Inject(TELEGRAM_CHANNEL_EXTRACTOR_PORT)
     private readonly telegramChannelExtractor: TelegramChannelExtractorPort,
+    @Inject(forwardRef(() => SourceTextNormalizerService))
     private readonly sourceTextNormalizer: SourceTextNormalizerService,
     @Inject(forwardRef(() => BotService))
     private readonly botService: BotService,

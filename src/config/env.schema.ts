@@ -15,6 +15,11 @@ const booleanStringSchema = z
   .enum(['true', 'false'])
   .transform((value) => value === 'true');
 
+const optionalUrlSchema = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.url().optional(),
+);
+
 const envSchema = z
   .object({
     NODE_ENV: z
@@ -51,7 +56,11 @@ const envSchema = z
     PUBLIC_API_URL: z.url().optional(),
     PUBLIC_MINI_APP_URL: z.url().optional(),
     ALLOWED_TELEGRAM_IDS: telegramIdsSchema,
-    OPENAI_API_KEY: z.string().optional(),
+    LLM_API_KEY: z.string().optional(),
+    LLM_BASE_URL: optionalUrlSchema,
+    LLM_OUTPUT_MODE: z.enum(['json_schema', 'json_object']).default('json_schema'),
+    LLM_ADAPTATION_MODEL: z.string().min(1).optional(),
+    LLM_WORD_ANALYSIS_MODEL: z.string().min(1).optional(),
     SUPABASE_URL: z.url(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   })

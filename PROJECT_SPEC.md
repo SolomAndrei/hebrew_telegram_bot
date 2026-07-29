@@ -14,7 +14,7 @@
 - [x] Настроен TypeScript
 - [x] Настроены переменные окружения
 - [x] Подключен Supabase / PostgreSQL
-- [x] Подключен OpenAI API
+- [x] Подключен OpenAI-compatible LLM API
 - [x] Добавлен общий логгер и обработка ошибок
 
 ### Приватность и доступ
@@ -24,7 +24,7 @@
 - [x] Неавторизованные пользователи получают отказ или игнорируются
 - [x] Реализована валидация `x-telegram-init-data` для Mini App
 - [x] После валидации initData проверяется whitelist пользователя
-- [ ] В BotFather отключено добавление бота в группы
+- [x] В BotFather отключено добавление бота в группы
 
 ### Telegram Bot
 
@@ -56,13 +56,14 @@
 ### Адаптация текста через LLM
 
 - [x] Реализован Prompt этапа адаптации
-- [x] OpenAI вызывается с JSON-ответом
+- [x] LLM provider вызывается с JSON-ответом
 - [x] Ответ адаптации валидируется по схеме
 - [x] Реализован Validator Prompt
 - [x] При `is_valid = true` статья сохраняется
 - [x] При `is_valid = false` выполняется повторная генерация до 2 попыток
 - [x] Реализован fallback, если адаптация не прошла проверку
 - [x] В адаптацию подмешиваются сложные слова пользователя
+- [x] LLM adapter использует provider-neutral SDK вместо OpenAI SDK
 
 ### Telegram Mini App
 
@@ -122,11 +123,11 @@
 - `JobsModule`: Postgres-backed queue через Supabase, RPC claim/complete/fail, worker обработки jobs, дневной лимит LLM-heavy jobs на пользователя, RSS cron enqueue с deduplication key.
 - `SourcesModule`: классификация raw Hebrew text, URL, public Telegram channel refs; default Hebrew RSS sources; URL extraction через Cheerio adapter; public Telegram channel extraction через web adapter; нормализация source text перед LLM.
 - `UsersModule`: создание/поиск пользователя, чтение learning words, счётчик learning words, exposures/mastered updates, обновление `current_level_score`.
-- `AdaptationModule`: OpenAI adapter, JSON response mode, prompt адаптации, validator prompt, retry до 2 повторных генераций, typed fallback если адаптация не прошла проверку.
+- `AdaptationModule`: provider-neutral LLM adapter на Vercel AI SDK, schema-based JSON output, prompt адаптации, validator prompt, retry до 2 повторных генераций, typed fallback если адаптация не прошла проверку.
 - `ArticlesModule`: сохранение адаптированных статей в таблицу `articles`, защищённое чтение статьи по `id` для текущего пользователя.
 - `TelegramAuthModule`: проверка Telegram Mini App `initData` через HMAC, извлечение текущего Telegram user, whitelist check.
 - `MeModule`: защищённые `GET /api/me` и `PATCH /api/me/level`.
-- `TranslationModule`: защищённый `POST /api/translate-word`, word analysis через OpenAI adapter, upsert `user_words`, возврат `learningWordsCount`.
+- `TranslationModule`: защищённый `POST /api/translate-word`, word analysis через provider-neutral LLM adapter, upsert `user_words`, возврат `learningWordsCount`.
 - `ReadingSessionsModule`: защищённый `POST /api/reading-sessions/finish`, запись `reading_stats`, пересчёт уровня по `DifficultyRatio` без времени чтения, successful exposures и перевод слов в `mastered`.
 - `mini-app/`: Vite / React / Tailwind frontend skeleton, Telegram initData header, client API для `GET /api/me` и `GET /api/articles/:id`, RTL экран чтения.
 
@@ -136,14 +137,7 @@
 
 ## Следующий шаг
 
-Следующий выбранный шаг: отключить добавление бота в группы в BotFather.
-
-Цель шага:
-
-- открыть настройки бота в BotFather;
-- выключить `Allow Groups`;
-- проверить, что бот не может быть добавлен в групповые чаты;
-- отметить ручной deployment/security пункт как выполненный.
+Текущий MVP-чеклист выполнен. Следующий шаг нужно выбрать отдельно: production deploy, расширение Mini App UI, улучшение качества адаптации или новые источники.
 
 ## 1. Общие сведения и архитектура
 
@@ -157,7 +151,7 @@
 
 - **Telegram Bot**: Node.js + grammY или telegraf. Точка входа, управление настройками и ссылками.
 - **Telegram Mini App**: React / Vite / Tailwind SPA внутри Telegram. Отвечает за процесс чтения и интерактивное взаимодействие со словами.
-- **Backend API**: Node.js + NestJS с Fastify adapter. Бизнес-логика, OpenAI API, валидация, работа с БД.
+- **Backend API**: Node.js + NestJS с Fastify adapter. Бизнес-логика, LLM API, валидация, работа с БД.
 - **База данных**: Supabase / PostgreSQL. Хранение пользователей, словаря, истории адаптаций и whitelist.
 
 ### 1.3. Архитектурный принцип: модули, порты и заменяемые адаптеры
@@ -173,7 +167,7 @@ Use cases / services -> ports -> adapters -> external providers
 Требования:
 
 - бизнес-логика работает через локальные интерфейсы/порты, а не напрямую через SDK внешних сервисов;
-- Supabase, будущая промышленная БД, Redis/BullMQ, OpenAI или другой LLM-провайдер подключаются как адаптеры;
+- Supabase, будущая промышленная БД, Redis/BullMQ и OpenAI-compatible LLM providers подключаются как адаптеры;
 - замена адаптера не должна требовать переписывания use case-логики;
 - Nest-модули должны иметь четкие границы ответственности: `BotModule`, `AccessModule`, `DatabaseModule`, `JobsModule`, `AdaptationModule`, `ArticlesModule`, `UsersModule`, `TelegramAuthModule`, `MeModule`;
 - SDK внешних сервисов должны быть инкапсулированы внутри инфраструктурных сервисов, например `SupabaseService`, `TelegramBotService`, `OpenAiAdapter`;
@@ -183,7 +177,7 @@ Use cases / services -> ports -> adapters -> external providers
 
 - **Database port**: сейчас Supabase/PostgreSQL, позже можно заменить на другой managed PostgreSQL или отдельный database layer;
 - **Queue port**: сейчас Postgres-backed jobs table, позже можно заменить на Redis/BullMQ, SQS или другой managed queue;
-- **LLM port**: сейчас OpenAI, позже можно заменить или дополнить Anthropic, Gemini или локальной моделью;
+- **LLM port**: сейчас provider-neutral SDK через env, можно переключать OpenAI-compatible endpoints: DeepSeek, NVIDIA NIM, OpenRouter, OpenAI или другой совместимый endpoint;
 - **Telegram transport**: локально polling, в production webhook.
 
 ## 2. Безопасность и ограничение доступа
@@ -305,7 +299,7 @@ Mini App home/settings показывает:
 
 #### Этап 1: генерация
 
-Backend передает сырой текст в OpenAI `gpt-4o` с JSON-ответом.
+Backend передает сырой текст в настроенную LLM adaptation model с JSON-ответом.
 
 Инструкция для промпта:
 
@@ -494,7 +488,7 @@ DifficultyRatio = translationRequestsCount / generatedWordsCount
 - **Telegram Bot**: grammY или telegraf
 - **Mini App Frontend**: React, Vite, Tailwind CSS, `@telegram-apps/sdk`
 - **Database & Auth**: Supabase / PostgreSQL
-- **AI Provider**: OpenAI API, `gpt-4o`, `gpt-4o-mini`
+- **AI Provider**: Vercel AI SDK + `@ai-sdk/openai-compatible` через env-configurable `LLM_BASE_URL` и model names
 - **Parser**: `rss-parser`, `cheerio`, `gramjs`
 
 ## 6. API draft
@@ -599,7 +593,7 @@ Response:
 - чужой Telegram ID при попытке отправить команду боту получает отказ или игнорируется;
 - bot успешно принимает ссылку на новость;
 - bot успешно принимает сырой текст на иврите;
-- backend адаптирует текст через OpenAI;
+- backend адаптирует текст через настроенный LLM provider;
 - адаптация проходит автоматическую проверку validator;
 - статья сохраняется в PostgreSQL;
 - Mini App открывает адаптированный текст;
@@ -615,7 +609,7 @@ Response:
 3. Создать таблицы `users`, `articles`, `user_words`.
 4. Поднять Telegram bot и команду `/start`.
 5. Добавить прием сырого текста в боте.
-6. Реализовать OpenAI adaptation pipeline.
+6. Реализовать LLM adaptation pipeline.
 7. Добавить validator pipeline.
 8. Сохранять адаптированные статьи в БД.
 9. Создать Vite React Mini App.

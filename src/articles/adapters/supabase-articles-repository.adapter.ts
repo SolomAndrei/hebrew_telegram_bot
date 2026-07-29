@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { SupabaseService } from '../../database/supabase.service';
 import type {
@@ -22,7 +22,10 @@ type ArticleForReadingRow = ArticleRow & {
 export class SupabaseArticlesRepositoryAdapter
   implements ArticlesRepositoryPort
 {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    @Inject(SupabaseService)
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   async saveAdaptedArticle(
     input: SaveAdaptedArticleInput,

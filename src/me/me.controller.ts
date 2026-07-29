@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Patch, UseGuards } from '@nestjs/common';
 import { IsInt, Max, Min } from 'class-validator';
 
 import type {
@@ -24,7 +24,7 @@ class UpdateLevelDto implements UpdateLevelRequest {
 @Controller('me')
 @UseGuards(TelegramInitDataGuard)
 export class MeController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(@Inject(UsersService) private readonly usersService: UsersService) {}
 
   @Get()
   getMe(@CurrentTelegramUser() user: TelegramMiniAppUser): Promise<MeResponse> {

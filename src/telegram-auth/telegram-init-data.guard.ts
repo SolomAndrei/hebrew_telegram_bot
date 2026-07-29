@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -10,7 +11,10 @@ import { TelegramInitDataService } from './telegram-init-data.service';
 
 @Injectable()
 export class TelegramInitDataGuard implements CanActivate {
-  constructor(private readonly telegramInitDataService: TelegramInitDataService) {}
+  constructor(
+    @Inject(TelegramInitDataService)
+    private readonly telegramInitDataService: TelegramInitDataService,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context

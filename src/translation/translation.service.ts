@@ -12,7 +12,9 @@ import { UsersService } from '../users/users.service';
 @Injectable()
 export class TranslationService {
   constructor(
+    @Inject(ArticlesService)
     private readonly articlesService: ArticlesService,
+    @Inject(UsersService)
     private readonly usersService: UsersService,
     @Inject(WORD_ANALYSIS_PORT)
     private readonly wordAnalysis: WordAnalysisPort,

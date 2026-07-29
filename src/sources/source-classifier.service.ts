@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { HebrewTextValidatorService } from './hebrew-text-validator.service';
 import { SubmittedSource } from './source.types';
@@ -6,6 +6,7 @@ import { SubmittedSource } from './source.types';
 @Injectable()
 export class SourceClassifierService {
   constructor(
+    @Inject(HebrewTextValidatorService)
     private readonly hebrewTextValidator: HebrewTextValidatorService,
   ) {}
 

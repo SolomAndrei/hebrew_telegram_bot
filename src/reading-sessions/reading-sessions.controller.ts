@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
 import { IsArray, IsInt, IsString, IsUUID, Min } from 'class-validator';
 
 import type {
@@ -31,6 +31,7 @@ class FinishReadingSessionDto implements FinishReadingSessionRequest {
 @UseGuards(TelegramInitDataGuard)
 export class ReadingSessionsController {
   constructor(
+    @Inject(ReadingSessionsService)
     private readonly readingSessionsService: ReadingSessionsService,
   ) {}
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { SupabaseService } from '../../database/supabase.service';
 import type {
@@ -31,7 +31,10 @@ type LearningWordExposureRow = {
 
 @Injectable()
 export class SupabaseUsersRepositoryAdapter implements UsersRepositoryPort {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    @Inject(SupabaseService)
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   async findOrCreateByTelegramId(telegramId: number): Promise<User> {
     const { data, error } = await this.supabaseService.client

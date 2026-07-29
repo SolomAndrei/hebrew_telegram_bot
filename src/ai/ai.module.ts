@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 
-import { OpenAiWordAnalysisAdapter } from './adapters/openai-word-analysis.adapter';
+import { LlmProviderService } from '../llm/llm-provider.service';
+import { LlmWordAnalysisAdapter } from './adapters/llm-word-analysis.adapter';
 import { WORD_ANALYSIS_PORT } from './ports/word-analysis.port';
 
 @Module({
   providers: [
+    LlmProviderService,
     {
       provide: WORD_ANALYSIS_PORT,
-      useClass: OpenAiWordAnalysisAdapter,
+      useClass: LlmWordAnalysisAdapter,
     },
   ],
   exports: [WORD_ANALYSIS_PORT],

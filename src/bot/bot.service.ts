@@ -4,6 +4,7 @@ import {
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bot, InlineKeyboard } from 'grammy';
@@ -25,10 +26,15 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @Inject(ConfigService) configService: ConfigService<Env, true>,
+    @Inject(TelegramAccessService)
     private readonly telegramAccessService: TelegramAccessService,
+    @Inject(RateLimitService)
     private readonly rateLimitService: RateLimitService,
+    @Inject(forwardRef(() => JobsService))
     private readonly jobsService: JobsService,
+    @Inject(DefaultRssService)
     private readonly defaultRssService: DefaultRssService,
+    @Inject(SourceClassifierService)
     private readonly sourceClassifierService: SourceClassifierService,
   ) {
     this.bot = new Bot(configService.get('BOT_TOKEN', { infer: true }));

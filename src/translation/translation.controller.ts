@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
 import { IsString, IsUUID, MinLength } from 'class-validator';
 
 import type {
@@ -26,7 +26,10 @@ class TranslateWordDto implements TranslateWordRequest {
 @Controller('translate-word')
 @UseGuards(TelegramInitDataGuard)
 export class TranslationController {
-  constructor(private readonly translationService: TranslationService) {}
+  constructor(
+    @Inject(TranslationService)
+    private readonly translationService: TranslationService,
+  ) {}
 
   @Post()
   translateWord(

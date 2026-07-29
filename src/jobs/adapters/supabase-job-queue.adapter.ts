@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { SupabaseService } from '../../database/supabase.service';
 import {
@@ -21,7 +21,10 @@ type ClaimedJobRow = {
 
 @Injectable()
 export class SupabaseJobQueueAdapter implements JobQueuePort {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    @Inject(SupabaseService)
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   async enqueue(input: EnqueueTelegramJobInput): Promise<EnqueuedJob> {
     if (input.deduplicationKey) {

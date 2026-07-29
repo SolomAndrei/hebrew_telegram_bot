@@ -22,6 +22,7 @@ export class TelegramInitDataService {
   constructor(
     @Inject(ConfigService)
     private readonly configService: ConfigService<Env, true>,
+    @Inject(TelegramAccessService)
     private readonly telegramAccessService: TelegramAccessService,
   ) {}
 

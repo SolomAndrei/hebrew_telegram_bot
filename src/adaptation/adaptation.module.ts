@@ -1,15 +1,17 @@
 import { Module } from '@nestjs/common';
 
-import { OpenAiTextAdapter } from './adapters/openai-text-adapter';
+import { LlmProviderService } from '../llm/llm-provider.service';
+import { LlmTextAdapter } from './adapters/llm-text-adapter';
 import { AdaptationService } from './adaptation.service';
 import { TEXT_ADAPTER_PORT } from './ports/text-adapter.port';
 
 @Module({
   providers: [
     AdaptationService,
+    LlmProviderService,
     {
       provide: TEXT_ADAPTER_PORT,
-      useClass: OpenAiTextAdapter,
+      useClass: LlmTextAdapter,
     },
   ],
   exports: [AdaptationService],

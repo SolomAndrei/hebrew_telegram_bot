@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Interval } from '@nestjs/schedule';
 
@@ -21,8 +21,11 @@ export class RssNewsCronService {
   private nextRunAt = 0;
 
   constructor(
+    @Inject(DefaultRssService)
     private readonly defaultRssService: DefaultRssService,
+    @Inject(forwardRef(() => JobsService))
     private readonly jobsService: JobsService,
+    @Inject(ConfigService)
     configService: ConfigService<Env, true>,
   ) {
     this.enabled = configService.get('RSS_CRON_ENABLED', { infer: true });

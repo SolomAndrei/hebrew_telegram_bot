@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { ArticlesService } from '../articles/articles.service';
 import type {
@@ -10,7 +10,9 @@ import { UsersService } from '../users/users.service';
 @Injectable()
 export class ReadingSessionsService {
   constructor(
+    @Inject(ArticlesService)
     private readonly articlesService: ArticlesService,
+    @Inject(UsersService)
     private readonly usersService: UsersService,
   ) {}
 
