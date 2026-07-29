@@ -16,6 +16,12 @@ async function bootstrap() {
     new FastifyAdapter(),
   );
 
+  app.enableCors({
+    origin: process.env.PUBLIC_MINI_APP_URL,
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['content-type', 'x-telegram-init-data'],
+  });
+
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
