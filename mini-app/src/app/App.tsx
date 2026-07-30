@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 import type {
   ArticleForReadingResponse,
+  ArticleToken,
   MeResponse,
-  TranslateWordResponse,
+  WordArticleToken,
 } from '../../../src/mini-app/mini-app-api.contracts';
 import type { ApiClient } from '../api/client';
 import { ApiError } from '../api/client';
@@ -39,7 +40,7 @@ type TranslationState =
   | {
       status: 'loaded';
       word: string;
-      result: TranslateWordResponse;
+      result: WordArticleToken;
     }
   | {
       status: 'error';
@@ -62,11 +63,6 @@ type FinishState =
       status: 'error';
       message: string;
     };
-
-type TextToken = {
-  text: string;
-  isWord: boolean;
-};
 
 export function App({ apiClient, telegram }: AppProps) {
   const articleId = useMemo(() => getArticleIdFromPath(), []);
@@ -138,6 +134,7 @@ export function App({ apiClient, telegram }: AppProps) {
             article={state.article}
             articleId={state.article.id}
             me={state.me}
+            telegram={telegram}
           />
         ) : null}
       </div>
@@ -150,11 +147,13 @@ function ReadingScreen({
   article,
   articleId,
   me,
+  telegram,
 }: {
   apiClient: ApiClient;
   article: ArticleForReadingResponse;
   articleId: string;
   me: MeResponse;
+  telegram: TelegramEnvironment;
 }) {
   const [currentLevelScore, setCurrentLevelScore] = useState(
     me.currentLevelScore,
@@ -164,53 +163,23 @@ function ReadingScreen({
   );
   const [translationRequestsCount, setTranslationRequestsCount] = useState(0);
   const [translatedLemmas, setTranslatedLemmas] = useState<string[]>([]);
+  const [showNiqqud, setShowNiqqud] = useState(false);
   const [translation, setTranslation] = useState<TranslationState>({
     status: 'closed',
   });
   const [finishState, setFinishState] = useState<FinishState>({
     status: 'idle',
   });
-  const paragraphs = article.adaptedText
-    .split(/\n+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
-  const generatedWordsCount = Math.max(
-    paragraphs.reduce(
-      (count, paragraph) =>
-        count + tokenizeText(paragraph).filter((token) => token.isWord).length,
-      0,
-    ),
-    1,
-  );
+  const generatedWordsCount = Math.max(countWordTokens(article.tokens), 1);
 
-  async function handleWordClick(word: string, sentenceContext: string) {
+  function handleWordClick(token: WordArticleToken) {
+    setTranslationRequestsCount((count) => count + 1);
+    setTranslatedLemmas((lemmas) => addUniqueValue(lemmas, token.lemma));
     setTranslation({
-      status: 'loading',
-      word,
+      status: 'loaded',
+      word: token.text,
+      result: token,
     });
-
-    try {
-      const result = await apiClient.translateWord({
-        articleId,
-        word,
-        sentenceContext,
-      });
-
-      setLearningWordsCount(result.learningWordsCount);
-      setTranslationRequestsCount((count) => count + 1);
-      setTranslatedLemmas((lemmas) => addUniqueValue(lemmas, result.lemma));
-      setTranslation({
-        status: 'loaded',
-        word,
-        result,
-      });
-    } catch {
-      setTranslation({
-        status: 'error',
-        word,
-        message: 'Unable to translate this word.',
-      });
-    }
   }
 
   async function handleFinishReading() {
@@ -226,6 +195,12 @@ function ReadingScreen({
 
       setCurrentLevelScore(result.currentLevelScore);
       setLearningWordsCount(result.learningWordsCount);
+
+      if (telegram.isTelegram) {
+        telegram.close();
+        return;
+      }
+
       setFinishState({
         status: 'completed',
         levelChanged: result.levelChanged,
@@ -257,53 +232,51 @@ function ReadingScreen({
             </span>
           </div>
 
-          <h1
-            className="text-right text-3xl font-semibold leading-tight"
-            dir="rtl"
-          >
-            {article.title}
-          </h1>
+          <label className="flex items-center justify-end gap-2 text-sm font-medium text-slate-700">
+            <span>Show niqqud</span>
+            <input
+              checked={showNiqqud}
+              type="checkbox"
+              onChange={(event) => setShowNiqqud(event.currentTarget.checked)}
+            />
+          </label>
         </header>
 
         <div
-          className="flex flex-col gap-4 text-right text-xl leading-10"
+          className="whitespace-pre-wrap text-right text-xl leading-10"
           dir="rtl"
         >
-          {paragraphs.map((paragraph, paragraphIndex) => (
-            <p key={paragraphIndex}>
-              {tokenizeText(paragraph).map((token, tokenIndex) =>
-                token.isWord ? (
-                  <button
-                    key={`${token.text}-${tokenIndex}`}
-                    className="rounded px-0.5 underline decoration-slate-300 decoration-dotted underline-offset-4 transition hover:bg-slate-100 active:bg-slate-200"
-                    type="button"
-                    onClick={() =>
-                      void handleWordClick(
-                        token.text,
-                        getSentenceContext(paragraph, token.text),
-                      )
-                    }
-                  >
-                    {token.text}
-                  </button>
-                ) : (
-                  <span key={`${token.text}-${tokenIndex}`}>{token.text}</span>
-                ),
-              )}
-            </p>
-          ))}
+          {article.tokens.map((token, tokenIndex) =>
+            token.type === 'word' ? (
+              <button
+                key={token.id}
+                className="rounded px-0.5 underline decoration-slate-300 decoration-dotted underline-offset-4 transition hover:bg-slate-100 active:bg-slate-200"
+                type="button"
+                onClick={() => handleWordClick(token)}
+              >
+                {showNiqqud ? token.pointedText : token.text}
+              </button>
+            ) : (
+              <span key={`text-${tokenIndex}`}>{token.text}</span>
+            ),
+          )}
         </div>
 
         <footer className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5">
           <button
-            className="rounded-2xl bg-slate-950 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
             type="button"
             disabled={finishState.status === 'submitting'}
             onClick={() => void handleFinishReading()}
           >
-            {finishState.status === 'submitting'
-              ? 'Finishing...'
-              : 'Finish reading'}
+            {finishState.status === 'submitting' ? (
+              <>
+                <Spinner />
+                <span>Finishing...</span>
+              </>
+            ) : (
+              'Finish reading'
+            )}
           </button>
           <FinishReadingStatus state={finishState} />
         </footer>
@@ -364,31 +337,16 @@ function TranslationSheet({
 
         {state.status === 'loaded' ? (
           <dl className="flex flex-col gap-3 text-sm">
-            <TranslationDetail
-              label="Context translation"
-              value={state.result.contextTranslationRu}
-            />
+            <TranslationDetail label="Translation" value={state.result.translationRu} />
             <TranslationDetail
               label="Transcription"
               value={state.result.transcriptionRu}
             />
+            <TranslationDetail
+              label="With niqqud"
+              value={state.result.pointedText}
+            />
             <TranslationDetail label="Lemma" value={state.result.lemma} />
-            <TranslationDetail
-              label="Part of speech"
-              value={state.result.partOfSpeech}
-            />
-            <TranslationDetail
-              label="Base form"
-              value={state.result.baseFormReason}
-            />
-            {state.result.alternatives.length > 0 ? (
-              <div>
-                <dt className="font-medium text-slate-500">Alternatives</dt>
-                <dd className="mt-1 text-slate-900">
-                  {state.result.alternatives.join(', ')}
-                </dd>
-              </div>
-            ) : null}
           </dl>
         ) : null}
       </section>
@@ -413,6 +371,15 @@ function FinishReadingStatus({ state }: { state: FinishState }) {
   );
 }
 
+function Spinner() {
+  return (
+    <span
+      aria-hidden="true"
+      className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
+    />
+  );
+}
+
 function TranslationDetail({
   label,
   value,
@@ -428,36 +395,8 @@ function TranslationDetail({
   );
 }
 
-function tokenizeText(text: string): TextToken[] {
-  return (
-    text.match(/[\p{L}\p{M}'’-]+|[^\p{L}\p{M}'’-]+/gu)?.map((token) => ({
-      text: token,
-      isWord: /\p{L}/u.test(token),
-    })) ?? []
-  );
-}
-
-function getSentenceContext(paragraph: string, word: string): string {
-  const wordIndex = paragraph.indexOf(word);
-
-  if (wordIndex === -1) {
-    return paragraph;
-  }
-
-  const sentenceStart = Math.max(
-    paragraph.lastIndexOf('.', wordIndex),
-    paragraph.lastIndexOf('!', wordIndex),
-    paragraph.lastIndexOf('?', wordIndex),
-  );
-  const sentenceEndCandidates = ['.', '!', '?']
-    .map((marker) => paragraph.indexOf(marker, wordIndex + word.length))
-    .filter((index) => index !== -1);
-  const sentenceEnd =
-    sentenceEndCandidates.length > 0
-      ? Math.min(...sentenceEndCandidates)
-      : paragraph.length;
-
-  return paragraph.slice(sentenceStart + 1, sentenceEnd + 1).trim();
+function countWordTokens(tokens: ArticleToken[]): number {
+  return tokens.filter((token) => token.type === 'word').length;
 }
 
 function addUniqueValue(values: string[], nextValue: string): string[] {

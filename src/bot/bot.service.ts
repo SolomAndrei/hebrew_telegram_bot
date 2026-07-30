@@ -81,13 +81,11 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
   async sendArticleReply(input: {
     chatId: number;
-    title: string;
     text: string;
     articleId: string;
     articleUrl?: string;
   }): Promise<void> {
     const message = this.formatArticleReply(
-      input.title,
       input.text,
       input.articleId,
       input.articleUrl,
@@ -267,7 +265,6 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
   }
 
   private formatArticleReply(
-    title: string,
     text: string,
     articleId: string,
     articleUrl?: string,
@@ -281,6 +278,6 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       ? `Open in Mini App: ${articleUrl}`
       : `Article ID: ${articleId}`;
 
-    return `${title}\n\n${visibleText}\n\n${articleReference}`;
+    return `${visibleText}\n\n${articleReference}`;
   }
 }

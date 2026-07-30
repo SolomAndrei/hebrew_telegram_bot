@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
+import type { ArticleToken } from '../mini-app/mini-app-api.contracts';
+import { transcribeHebrewToRussian } from './hebrew-transcription';
 import {
   AdaptRawTextInput,
   AdaptedTextDraft,
@@ -8,6 +10,7 @@ import {
 } from './ports/text-adapter.port';
 
 export type AdaptedTextResult = AdaptedTextDraft & {
+  tokens: ArticleToken[];
   isValidated: boolean;
 };
 
@@ -44,8 +47,23 @@ export class AdaptationService {
       });
 
       if (validation.isValid) {
+        const enriched = await this.textAdapter.enrichTextForReading({
+          adaptedText: draft.adaptedText,
+        });
+
         return {
           ...draft,
+          tokens: enriched.tokens.map((token) =>
+            token.type === 'word'
+              ? {
+                  ...token,
+                  transcriptionRu: transcribeHebrewToRussian({
+                    text: token.text,
+                    pointedText: token.pointedText,
+                  }),
+                }
+              : token,
+          ),
           isValidated: true,
         };
       }

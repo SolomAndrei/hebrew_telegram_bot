@@ -8,27 +8,27 @@ export type UpdateLevelRequest = {
   currentLevelScore: number;
 };
 
+export type WordArticleToken = {
+  type: 'word';
+  id: string;
+  text: string;
+  pointedText: string;
+  transcriptionRu: string;
+  translationRu: string;
+  lemma: string;
+};
+
+export type TextArticleToken = {
+  type: 'text';
+  text: string;
+};
+
+export type ArticleToken = WordArticleToken | TextArticleToken;
+
 export type ArticleForReadingResponse = {
   id: string;
-  title: string;
-  adaptedText: string;
   difficultyScore: number;
-};
-
-export type TranslateWordRequest = {
-  articleId: string;
-  word: string;
-  sentenceContext: string;
-};
-
-export type TranslateWordResponse = {
-  contextTranslationRu: string;
-  transcriptionRu: string;
-  lemma: string;
-  partOfSpeech: string;
-  baseFormReason: string;
-  alternatives: string[];
-  learningWordsCount: number;
+  tokens: ArticleToken[];
 };
 
 export type FinishReadingSessionRequest = {

@@ -1,3 +1,5 @@
+import type { ArticleToken } from '../../mini-app/mini-app-api.contracts';
+
 export const ARTICLES_REPOSITORY_PORT = Symbol('ARTICLES_REPOSITORY_PORT');
 
 export type SaveAdaptedArticleInput = {
@@ -6,23 +8,21 @@ export type SaveAdaptedArticleInput = {
   sourceUrl?: string;
   originalText: string;
   originalSummary: string;
-  adaptedTitle: string;
   adaptedText: string;
+  readingTokens: ArticleToken[];
   difficultyScore: number;
   isValidated: boolean;
 };
 
 export type SavedArticle = {
   id: string;
-  adaptedTitle: string;
   adaptedText: string;
 };
 
 export type ArticleForReading = {
   id: string;
-  title: string;
-  adaptedText: string;
   difficultyScore: number;
+  tokens: ArticleToken[];
 };
 
 export interface ArticlesRepositoryPort {

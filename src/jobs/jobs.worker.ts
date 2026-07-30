@@ -223,8 +223,8 @@ export class JobsWorker {
       sourceUrl: input.sourceUrl,
       originalText: normalizedRawText,
       originalSummary: adapted.originalSummary,
-      adaptedTitle: adapted.adaptedTitle,
       adaptedText: adapted.adaptedText,
+      readingTokens: adapted.tokens,
       difficultyScore: input.user.currentLevelScore,
       isValidated: adapted.isValidated,
     });
@@ -257,7 +257,6 @@ export class JobsWorker {
   ): Promise<void> {
     await this.botService.sendArticleReply({
       chatId,
-      title: article.adaptedTitle,
       text: article.adaptedText,
       articleId: article.id,
       articleUrl: this.buildMiniAppArticleUrl(article.id),

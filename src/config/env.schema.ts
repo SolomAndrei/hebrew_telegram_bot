@@ -60,7 +60,6 @@ const envSchema = z
     LLM_BASE_URL: optionalUrlSchema,
     LLM_OUTPUT_MODE: z.enum(['json_schema', 'json_object']).default('json_schema'),
     LLM_ADAPTATION_MODEL: z.string().min(1).optional(),
-    LLM_WORD_ANALYSIS_MODEL: z.string().min(1).optional(),
     SUPABASE_URL: z.url(),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   })

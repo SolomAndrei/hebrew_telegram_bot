@@ -11,7 +11,6 @@ import { DatabaseModule } from './database/database.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MeModule } from './me/me.module';
 import { ReadingSessionsModule } from './reading-sessions/reading-sessions.module';
-import { TranslationModule } from './translation/translation.module';
 
 @Module({
   imports: [
@@ -26,7 +25,6 @@ import { TranslationModule } from './translation/translation.module';
     MeModule,
     ReadingSessionsModule,
     ScheduleModule.forRoot(),
-    TranslationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

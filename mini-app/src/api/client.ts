@@ -3,8 +3,6 @@ import type {
   FinishReadingSessionRequest,
   FinishReadingSessionResponse,
   MeResponse,
-  TranslateWordRequest,
-  TranslateWordResponse,
 } from '../../../src/mini-app/mini-app-api.contracts';
 
 const API_BASE_URL =
@@ -22,9 +20,6 @@ export class ApiError extends Error {
 export type ApiClient = {
   getMe: () => Promise<MeResponse>;
   getArticle: (articleId: string) => Promise<ArticleForReadingResponse>;
-  translateWord: (
-    request: TranslateWordRequest,
-  ) => Promise<TranslateWordResponse>;
   finishReadingSession: (
     request: FinishReadingSessionRequest,
   ) => Promise<FinishReadingSessionResponse>;
@@ -38,11 +33,6 @@ export function createApiClient(initData: string): ApiClient {
         `/articles/${encodeURIComponent(articleId)}`,
         initData,
       ),
-    translateWord: (request) =>
-      requestJson<TranslateWordResponse>('/translate-word', initData, {
-        method: 'POST',
-        body: JSON.stringify(request),
-      }),
     finishReadingSession: (request) =>
       requestJson<FinishReadingSessionResponse>(
         '/reading-sessions/finish',

@@ -25,11 +25,15 @@ export class ReadingSessionsService {
       user.id,
       input.articleId,
     );
+    await this.usersService.saveLearningWordsFromLemmas(
+      user.id,
+      input.translatedLemmas,
+    );
     const result = await this.usersService.finishReadingSession(user, input);
     const learningWordsCount =
       await this.usersService.updateExposuresAfterReading(
         user.id,
-        article.adaptedText,
+        article.tokens.map((token) => token.text).join(''),
         input.translatedLemmas,
       );
 

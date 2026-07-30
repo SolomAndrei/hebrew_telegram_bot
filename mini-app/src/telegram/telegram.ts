@@ -2,6 +2,7 @@ type TelegramWebApp = {
   initData: string;
   ready: () => void;
   expand: () => void;
+  close: () => void;
 };
 
 declare global {
@@ -15,6 +16,7 @@ declare global {
 export type TelegramEnvironment = {
   initData: string;
   isTelegram: boolean;
+  close: () => void;
 };
 
 export function bootstrapTelegram(): TelegramEnvironment {
@@ -27,11 +29,13 @@ export function bootstrapTelegram(): TelegramEnvironment {
     return {
       initData: webApp.initData,
       isTelegram: true,
+      close: () => webApp.close(),
     };
   }
 
   return {
     initData: import.meta.env.VITE_TELEGRAM_INIT_DATA_DEV ?? '',
     isTelegram: false,
+    close: () => undefined,
   };
 }

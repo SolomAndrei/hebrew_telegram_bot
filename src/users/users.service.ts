@@ -60,6 +60,28 @@ export class UsersService {
     return this.getLearningWordsCount(input.userId);
   }
 
+  async saveLearningWordsFromLemmas(
+    userId: string,
+    translatedLemmas: string[],
+  ): Promise<number> {
+    const uniqueLemmas = [...new Set(translatedLemmas)]
+      .map((lemma) => lemma.trim())
+      .filter(Boolean);
+
+    await Promise.all(
+      uniqueLemmas.map((lemma) =>
+        this.usersRepository.upsertLearningWord({
+          userId,
+          lemma,
+          originalWord: lemma,
+          partOfSpeech: 'unknown',
+        }),
+      ),
+    );
+
+    return this.getLearningWordsCount(userId);
+  }
+
   async updateExposuresAfterReading(
     userId: string,
     adaptedText: string,
