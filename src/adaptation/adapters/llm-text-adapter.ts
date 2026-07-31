@@ -6,9 +6,16 @@ import { z } from 'zod';
 import { Env } from '../../config/env.schema';
 import { parseLlmJsonResponse } from '../../llm/llm-json-response';
 import { LlmProviderService } from '../../llm/llm-provider.service';
+import { stripHebrewMarks } from '../hebrew-transcription';
+import {
+  SkeletonToken,
+  SkeletonWordToken,
+  tokenizeHebrewText,
+} from '../hebrew-text-tokenizer';
 import type {
   AdaptRawTextInput,
   AdaptedTextDraft,
+  EnrichedArticleToken,
   EnrichedTextForReading,
   EnrichTextForReadingInput,
   TextAdapterPort,
@@ -22,23 +29,15 @@ const adaptedTextSchema = z.object({
   vocabulary_used: z.array(z.string()).default([]),
 });
 
-const readingTokenSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('word'),
-    id: z.union([z.string(), z.number()]).transform(String),
-    text: z.string(),
-    pointedText: z.string(),
-    translationRu: z.string(),
-    lemma: z.string(),
-  }),
-  z.object({
-    type: z.literal('text'),
-    text: z.string(),
-  }),
-]);
+const wordEnrichmentSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(String),
+  pointedText: z.string(),
+  translationRu: z.string(),
+  lemma: z.string(),
+});
 
-const enrichedTextSchema = z.object({
-  tokens: z.array(readingTokenSchema),
+const wordEnrichmentsSchema = z.object({
+  words: z.array(wordEnrichmentSchema),
 });
 
 const validationSchema = z.object({
@@ -47,7 +46,7 @@ const validationSchema = z.object({
 });
 
 type AdaptedTextResponse = z.infer<typeof adaptedTextSchema>;
-type EnrichedTextResponse = z.infer<typeof enrichedTextSchema>;
+type WordEnrichmentsResponse = z.infer<typeof wordEnrichmentsSchema>;
 type ValidationResponse = z.infer<typeof validationSchema>;
 type LlmStage =
   | 'adaptation'
@@ -91,34 +90,100 @@ export class LlmTextAdapter implements TextAdapterPort {
   async enrichTextForReading(
     input: EnrichTextForReadingInput,
   ): Promise<EnrichedTextForReading> {
-    const system =
-      'You prepare adapted Hebrew text for an interactive language-learning reader. Return only valid JSON.';
-    const prompt = [
-      'Split the adapted Hebrew text into ordered tokens.',
-      'Preserve every word, space, punctuation mark, and newline in the original order.',
-      'For Hebrew word tokens, return type="word", a stable id, text, pointedText, translationRu, and lemma.',
-      'The id field must be a string, not a number.',
-      'The text field must be the original unpointed token exactly as it appears in the input.',
-      'The pointedText field must be the same token with niqqud.',
-      'The translationRu field must be a short Russian translation in this sentence context.',
-      'The lemma field must be a useful Hebrew dictionary lemma without niqqud.',
-      'For punctuation, spaces, and newlines, return type="text" and text only.',
-      'Do not add transcription, part of speech, alternatives, grammar notes, or explanations.',
-      'Return JSON with key: tokens.',
-      `Adapted text: ${input.adaptedText}`,
-    ].join('\n');
-    const object = await this.generateEnrichedText(system, prompt);
-    const reconstructedText = object.tokens
-      .map((token) => token.text)
-      .join('');
+    const skeleton = tokenizeHebrewText(input.adaptedText);
+    const wordTokens = skeleton.filter(
+      (token): token is SkeletonWordToken => token.type === 'word',
+    );
+    const textTokenCount = skeleton.length - wordTokens.length;
 
-    if (reconstructedText !== input.adaptedText) {
-      throw new Error('Enriched reading tokens do not preserve adapted text');
+    this.logger.log(
+      `tokenized words=${wordTokens.length} textTokens=${textTokenCount}`,
+    );
+
+    if (wordTokens.length === 0) {
+      return {
+        tokens: skeleton.map((token) => this.toTextToken(token)),
+      };
     }
 
-    return {
-      tokens: object.tokens,
-    };
+    const system =
+      'You enrich Hebrew word tokens for an interactive language-learning reader. Return only valid JSON.';
+    const prompt = [
+      'You receive the full adapted Hebrew text and a list of word tokens with stable string ids.',
+      'Do not split or retokenize the text. Enrich only the provided word ids.',
+      'Return exactly one object in words for each provided id.',
+      'For each word return: id, pointedText, translationRu, lemma.',
+      'id must be the same string id from the input.',
+      'pointedText must be the same consonants as text, with niqqud added.',
+      'After removing niqqud, pointedText must equal text exactly.',
+      'translationRu must be a short Russian translation in this sentence context.',
+      'lemma must be a useful Hebrew dictionary lemma without niqqud.',
+      'Do not add transcription, part of speech, alternatives, grammar notes, or explanations.',
+      'Return JSON with key: words.',
+      `Adapted text: ${input.adaptedText}`,
+      `Words: ${JSON.stringify(
+        wordTokens.map((token) => ({ id: token.id, text: token.text })),
+      )}`,
+    ].join('\n');
+
+    const enrichments = await this.generateWordEnrichments(system, prompt);
+    const enrichmentById = new Map(
+      enrichments.words.map((word) => [word.id, word]),
+    );
+
+    let matched = 0;
+    let missing = 0;
+    let pointedMismatch = 0;
+
+    const tokens: EnrichedArticleToken[] = skeleton.map((token) => {
+      if (token.type === 'text') {
+        return this.toTextToken(token);
+      }
+
+      const enrichment = enrichmentById.get(token.id);
+
+      if (!enrichment) {
+        missing += 1;
+        return {
+          type: 'word',
+          id: token.id,
+          text: token.text,
+          pointedText: token.text,
+          translationRu: '',
+          lemma: token.text,
+        };
+      }
+
+      const strippedPointedText = stripHebrewMarks(enrichment.pointedText);
+
+      if (strippedPointedText !== token.text) {
+        pointedMismatch += 1;
+        return {
+          type: 'word',
+          id: token.id,
+          text: token.text,
+          pointedText: token.text,
+          translationRu: enrichment.translationRu,
+          lemma: enrichment.lemma || token.text,
+        };
+      }
+
+      matched += 1;
+      return {
+        type: 'word',
+        id: token.id,
+        text: token.text,
+        pointedText: enrichment.pointedText,
+        translationRu: enrichment.translationRu,
+        lemma: enrichment.lemma || token.text,
+      };
+    });
+
+    this.logger.log(
+      `enrichment merged matched=${matched} missing=${missing} pointedMismatch=${pointedMismatch}`,
+    );
+
+    return { tokens };
   }
 
   async validateAdaptation(
@@ -139,6 +204,13 @@ export class LlmTextAdapter implements TextAdapterPort {
     return {
       isValid: object.is_valid,
       reason: object.reason,
+    };
+  }
+
+  private toTextToken(token: SkeletonToken): EnrichedArticleToken {
+    return {
+      type: 'text',
+      text: token.text,
     };
   }
 
@@ -175,15 +247,15 @@ export class LlmTextAdapter implements TextAdapterPort {
     });
   }
 
-  private async generateEnrichedText(
+  private async generateWordEnrichments(
     system: string,
     prompt: string,
-  ): Promise<EnrichedTextResponse> {
+  ): Promise<WordEnrichmentsResponse> {
     return this.runLlmStage('reading_token_enrichment', async () => {
       if (this.llmProvider.getOutputMode() === 'json_schema') {
         const { object } = await generateObject({
           model: this.getModel(),
-          schema: enrichedTextSchema,
+          schema: wordEnrichmentsSchema,
           system,
           prompt,
         });
@@ -194,7 +266,7 @@ export class LlmTextAdapter implements TextAdapterPort {
       return this.generateJsonObject(
         system,
         prompt,
-        enrichedTextSchema,
+        wordEnrichmentsSchema,
         'Reading token enrichment',
       );
     });

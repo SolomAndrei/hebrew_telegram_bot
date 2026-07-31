@@ -81,22 +81,19 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
 
   async sendArticleReply(input: {
     chatId: number;
-    text: string;
     articleId: string;
     articleUrl?: string;
   }): Promise<void> {
-    const message = this.formatArticleReply(
-      input.text,
-      input.articleId,
-      input.articleUrl,
-    );
-
     if (!input.articleUrl) {
-      await this.sendMessage(input.chatId, message);
+      await this.sendMessage(
+        input.chatId,
+        `Article is ready. ID: ${input.articleId}`,
+      );
       return;
     }
 
-    await this.bot.api.sendMessage(input.chatId, message, {
+    // Telegram requires message text; keep it short and put the Mini App behind the button.
+    await this.bot.api.sendMessage(input.chatId, 'Article is ready.', {
       reply_markup: new InlineKeyboard().webApp(
         'Open in Mini App',
         input.articleUrl,
@@ -308,23 +305,6 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     }
 
     return 'Send Hebrew text, a URL, or a public Telegram channel link.';
-  }
-
-  private formatArticleReply(
-    text: string,
-    articleId: string,
-    articleUrl?: string,
-  ): string {
-    const maxTextLength = 3000;
-    const visibleText =
-      text.length > maxTextLength
-        ? `${text.slice(0, maxTextLength)}...`
-        : text;
-    const articleReference = articleUrl
-      ? `Open in Mini App: ${articleUrl}`
-      : `Article ID: ${articleId}`;
-
-    return `${visibleText}\n\n${articleReference}`;
   }
 
   private safeHost(url: string): string {

@@ -374,7 +374,6 @@ export class JobsWorker {
 
     await this.botService.sendArticleReply({
       chatId: job.telegramChatId,
-      text: article.adaptedText,
       articleId: article.id,
       articleUrl: this.buildMiniAppArticleUrl(article.id),
     });

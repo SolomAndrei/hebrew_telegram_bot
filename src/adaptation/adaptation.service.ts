@@ -50,10 +50,28 @@ export class AdaptationService {
       const draft = await this.textAdapter.adaptRawText(input);
       lastDraft = draft;
 
-      const validation = await this.textAdapter.validateAdaptation({
-        originalText: input.rawText,
-        adaptedText: draft.adaptedText,
-      });
+      let validation: Awaited<
+        ReturnType<TextAdapterPort['validateAdaptation']>
+      >;
+
+      try {
+        validation = await this.textAdapter.validateAdaptation({
+          originalText: input.rawText,
+          adaptedText: draft.adaptedText,
+        });
+      } catch (error) {
+        // Transient LLM/JSON failures should retry adaptation, not fail the job immediately.
+        if (this.isTransientLlmError(error) && attempt < maxAttempts) {
+          this.logger.warn(
+            `Adaptation validation failed transiently on attempt ${attempt}/${maxAttempts}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+          continue;
+        }
+
+        throw error;
+      }
 
       if (validation.isValid) {
         this.logger.log(
@@ -97,8 +115,18 @@ export class AdaptationService {
         return await this.textAdapter.enrichTextForReading({ adaptedText });
       } catch (error) {
         lastError = error;
+
+        if (
+          !this.isTransientLlmError(error) ||
+          enrichAttempt >= maxEnrichAttempts
+        ) {
+          throw error instanceof Error
+            ? error
+            : new Error('Failed to enrich reading tokens');
+        }
+
         this.logger.warn(
-          `Reading token enrichment failed on attempt ${enrichAttempt}/${maxEnrichAttempts}: ${
+          `Reading token enrichment failed transiently on attempt ${enrichAttempt}/${maxEnrichAttempts}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
@@ -108,6 +136,26 @@ export class AdaptationService {
     throw lastError instanceof Error
       ? lastError
       : new Error('Failed to enrich reading tokens');
+  }
+
+  private isTransientLlmError(error: unknown): boolean {
+    const message =
+      error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+    return (
+      message.includes('json') ||
+      message.includes('syntaxerror') ||
+      message.includes('expected') ||
+      message.includes('timeout') ||
+      message.includes('timed out') ||
+      message.includes('fetch failed') ||
+      message.includes('network') ||
+      message.includes('econnreset') ||
+      message.includes('429') ||
+      message.includes('502') ||
+      message.includes('503') ||
+      message.includes('did not match schema')
+    );
   }
 
   private toReadableWordToken(
