@@ -90,10 +90,13 @@ export class JobsWorker {
         `Job claimed: jobId=${job.id} type=${job.type} telegramUserId=${job.telegramUserId} chatId=${job.telegramChatId} attempt=${job.attempts}`,
       );
 
-      await this.notifyUser(
-        job.telegramChatId,
-        this.getProcessingStartedMessage(job.type),
-      );
+      // Status spam: only notify on the first attempt. Retries stay in logs.
+      if (job.attempts === 1) {
+        await this.notifyUser(
+          job.telegramChatId,
+          this.getProcessingStartedMessage(job.type),
+        );
+      }
 
       await this.handleJob(job);
       await this.jobsService.complete(job.id);
@@ -109,21 +112,20 @@ export class JobsWorker {
 
       const errorMessage = getErrorMessage(error);
       const statusCode = getErrorStatusCode(error);
+      const isFinalAttempt = Boolean(job && job.attempts >= 3);
 
       this.logger.error(
-        `Failed to process job: jobId=${job?.id ?? 'none'} type=${job?.type ?? 'none'} statusCode=${statusCode ?? 'n/a'} durationMs=${Date.now() - startedAt} error=${errorMessage}`,
+        `Failed to process job: jobId=${job?.id ?? 'none'} type=${job?.type ?? 'none'} attempt=${job?.attempts ?? 'n/a'} statusCode=${statusCode ?? 'n/a'} durationMs=${Date.now() - startedAt} error=${errorMessage}`,
         error instanceof Error ? error.stack : undefined,
       );
 
       if (job) {
-        const isFinalAttempt = job.attempts >= 3;
-
-        await this.notifyUser(
-          job.telegramChatId,
-          isFinalAttempt
-            ? toUserFacingJobError(error)
-            : 'Temporary error while processing. Retrying...',
-        );
+        if (isFinalAttempt) {
+          await this.notifyUser(
+            job.telegramChatId,
+            toUserFacingJobError(error),
+          );
+        }
         await this.jobsService.fail(job.id, errorMessage);
       }
     } finally {
@@ -160,6 +162,7 @@ export class JobsWorker {
     const article = await this.adaptAndSaveArticle({
       jobId: job.id,
       chatId: job.telegramChatId,
+      attempt: job.attempts,
       user,
       rawText,
       sourceType: 'raw_text',
@@ -174,10 +177,12 @@ export class JobsWorker {
     this.logger.log(
       `Stage source_extraction: jobId=${job.id} source=telegram_channel channelRef=${channelRef}`,
     );
-    await this.notifyUser(
-      job.telegramChatId,
-      'Reading the Telegram channel...',
-    );
+    if (job.attempts === 1) {
+      await this.notifyUser(
+        job.telegramChatId,
+        'Reading the Telegram channel...',
+      );
+    }
 
     let posts: TelegramChannelPost[];
 
@@ -219,6 +224,7 @@ export class JobsWorker {
     const article = await this.adaptAndSaveArticle({
       jobId: job.id,
       chatId: job.telegramChatId,
+      attempt: job.attempts,
       user,
       rawText: post.text,
       sourceType: 'telegram_channel',
@@ -234,7 +240,9 @@ export class JobsWorker {
     this.logger.log(
       `Stage source_extraction: jobId=${job.id} source=url host=${this.safeHost(url)}`,
     );
-    await this.notifyUser(job.telegramChatId, 'Reading the article URL...');
+    if (job.attempts === 1) {
+      await this.notifyUser(job.telegramChatId, 'Reading the article URL...');
+    }
 
     const extracted = await this.urlContentExtractor.extract(url);
     const rawText = extracted.title
@@ -262,6 +270,7 @@ export class JobsWorker {
     const article = await this.adaptAndSaveArticle({
       jobId: job.id,
       chatId: job.telegramChatId,
+      attempt: job.attempts,
       user,
       rawText,
       sourceType: 'url',
@@ -274,6 +283,7 @@ export class JobsWorker {
   private async adaptAndSaveArticle(input: {
     jobId: string;
     chatId: number;
+    attempt: number;
     user: User;
     rawText: string;
     sourceType: SaveAdaptedArticleInput['sourceType'];
@@ -294,10 +304,12 @@ export class JobsWorker {
     this.logger.log(
       `Stage llm_adaptation: jobId=${input.jobId} userLevel=${input.user.currentLevelScore} learningWords=${learningWords.length}`,
     );
-    await this.notifyUser(
-      input.chatId,
-      'Adapting the text with LLM. This may take up to a minute...',
-    );
+    if (input.attempt === 1) {
+      await this.notifyUser(
+        input.chatId,
+        'Adapting the text with LLM. This may take up to a minute...',
+      );
+    }
 
     const adapted = await this.adaptationService.adaptRawText({
       rawText: normalizedRawText,

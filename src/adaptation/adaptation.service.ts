@@ -1,7 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import type { ArticleToken } from '../mini-app/mini-app-api.contracts';
-import { transcribeHebrewToRussian } from './hebrew-transcription';
+import {
+  stripHebrewMarks,
+  transcribeHebrewToRussian,
+} from './hebrew-transcription';
 import {
   AdaptRawTextInput,
   AdaptedTextDraft,
@@ -57,22 +60,12 @@ export class AdaptationService {
           `Adaptation validated on attempt ${attempt}; enriching reading tokens`,
         );
 
-        const enriched = await this.textAdapter.enrichTextForReading({
-          adaptedText: draft.adaptedText,
-        });
+        const enriched = await this.enrichWithRetry(draft.adaptedText);
 
         return {
           ...draft,
           tokens: enriched.tokens.map((token) =>
-            token.type === 'word'
-              ? {
-                  ...token,
-                  transcriptionRu: transcribeHebrewToRussian({
-                    text: token.text,
-                    pointedText: token.pointedText,
-                  }),
-                }
-              : token,
+            this.toReadableWordToken(token),
           ),
           isValidated: true,
         };
@@ -89,5 +82,63 @@ export class AdaptationService {
     }
 
     throw new AdaptationValidationFailedError(lastValidationReason);
+  }
+
+  private async enrichWithRetry(adaptedText: string) {
+    const maxEnrichAttempts = 2;
+    let lastError: unknown;
+
+    for (
+      let enrichAttempt = 1;
+      enrichAttempt <= maxEnrichAttempts;
+      enrichAttempt += 1
+    ) {
+      try {
+        return await this.textAdapter.enrichTextForReading({ adaptedText });
+      } catch (error) {
+        lastError = error;
+        this.logger.warn(
+          `Reading token enrichment failed on attempt ${enrichAttempt}/${maxEnrichAttempts}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Failed to enrich reading tokens');
+  }
+
+  private toReadableWordToken(
+    token: Awaited<
+      ReturnType<TextAdapterPort['enrichTextForReading']>
+    >['tokens'][number],
+  ): ArticleToken {
+    if (token.type !== 'word') {
+      return token;
+    }
+
+    const strippedPointedText = stripHebrewMarks(token.pointedText);
+
+    if (strippedPointedText !== token.text) {
+      this.logger.warn(
+        `Pointed Hebrew token does not match source token; falling back to unpointed text. text=${token.text} pointedText=${token.pointedText}`,
+      );
+
+      return {
+        ...token,
+        pointedText: token.text,
+        transcriptionRu: '',
+      };
+    }
+
+    return {
+      ...token,
+      transcriptionRu: transcribeHebrewToRussian({
+        text: token.text,
+        pointedText: token.pointedText,
+      }),
+    };
   }
 }
