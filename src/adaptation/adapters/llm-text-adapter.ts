@@ -25,7 +25,7 @@ const adaptedTextSchema = z.object({
 const readingTokenSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('word'),
-    id: z.string(),
+    id: z.union([z.string(), z.number()]).transform(String),
     text: z.string(),
     pointedText: z.string(),
     translationRu: z.string(),
@@ -97,6 +97,7 @@ export class LlmTextAdapter implements TextAdapterPort {
       'Split the adapted Hebrew text into ordered tokens.',
       'Preserve every word, space, punctuation mark, and newline in the original order.',
       'For Hebrew word tokens, return type="word", a stable id, text, pointedText, translationRu, and lemma.',
+      'The id field must be a string, not a number.',
       'The text field must be the original unpointed token exactly as it appears in the input.',
       'The pointedText field must be the same token with niqqud.',
       'The translationRu field must be a short Russian translation in this sentence context.',
