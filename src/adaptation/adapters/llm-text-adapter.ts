@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
@@ -49,10 +49,15 @@ const validationSchema = z.object({
 type AdaptedTextResponse = z.infer<typeof adaptedTextSchema>;
 type EnrichedTextResponse = z.infer<typeof enrichedTextSchema>;
 type ValidationResponse = z.infer<typeof validationSchema>;
+type LlmStage =
+  | 'adaptation'
+  | 'validation'
+  | 'reading_token_enrichment';
 
 @Injectable()
 export class LlmTextAdapter implements TextAdapterPort {
   private readonly model: string | undefined;
+  private readonly logger = new Logger(LlmTextAdapter.name);
 
   constructor(
     @Inject(LlmProviderService)
@@ -148,69 +153,75 @@ export class LlmTextAdapter implements TextAdapterPort {
     system: string,
     prompt: string,
   ): Promise<AdaptedTextResponse> {
-    if (this.llmProvider.getOutputMode() === 'json_schema') {
-      const { object } = await generateObject({
-        model: this.getModel(),
-        schema: adaptedTextSchema,
+    return this.runLlmStage('adaptation', async () => {
+      if (this.llmProvider.getOutputMode() === 'json_schema') {
+        const { object } = await generateObject({
+          model: this.getModel(),
+          schema: adaptedTextSchema,
+          system,
+          prompt,
+        });
+
+        return object;
+      }
+
+      return this.generateJsonObject(
         system,
         prompt,
-      });
-
-      return object;
-    }
-
-    return this.generateJsonObject(
-      system,
-      prompt,
-      adaptedTextSchema,
-      'Adaptation',
-    );
+        adaptedTextSchema,
+        'Adaptation',
+      );
+    });
   }
 
   private async generateEnrichedText(
     system: string,
     prompt: string,
   ): Promise<EnrichedTextResponse> {
-    if (this.llmProvider.getOutputMode() === 'json_schema') {
-      const { object } = await generateObject({
-        model: this.getModel(),
-        schema: enrichedTextSchema,
+    return this.runLlmStage('reading_token_enrichment', async () => {
+      if (this.llmProvider.getOutputMode() === 'json_schema') {
+        const { object } = await generateObject({
+          model: this.getModel(),
+          schema: enrichedTextSchema,
+          system,
+          prompt,
+        });
+
+        return object;
+      }
+
+      return this.generateJsonObject(
         system,
         prompt,
-      });
-
-      return object;
-    }
-
-    return this.generateJsonObject(
-      system,
-      prompt,
-      enrichedTextSchema,
-      'Reading token enrichment',
-    );
+        enrichedTextSchema,
+        'Reading token enrichment',
+      );
+    });
   }
 
   private async generateValidation(
     system: string,
     prompt: string,
   ): Promise<ValidationResponse> {
-    if (this.llmProvider.getOutputMode() === 'json_schema') {
-      const { object } = await generateObject({
-        model: this.getModel(),
-        schema: validationSchema,
+    return this.runLlmStage('validation', async () => {
+      if (this.llmProvider.getOutputMode() === 'json_schema') {
+        const { object } = await generateObject({
+          model: this.getModel(),
+          schema: validationSchema,
+          system,
+          prompt,
+        });
+
+        return object;
+      }
+
+      return this.generateJsonObject(
         system,
         prompt,
-      });
-
-      return object;
-    }
-
-    return this.generateJsonObject(
-      system,
-      prompt,
-      validationSchema,
-      'Adaptation validation',
-    );
+        validationSchema,
+        'Adaptation validation',
+      );
+    });
   }
 
   private async generateJsonObject<T>(
@@ -229,5 +240,34 @@ export class LlmTextAdapter implements TextAdapterPort {
     });
 
     return parseLlmJsonResponse(text, schema, context);
+  }
+
+  private async runLlmStage<T>(
+    stage: LlmStage,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const startedAt = Date.now();
+    const model = this.model ?? 'unset';
+    const outputMode = this.llmProvider.getOutputMode();
+
+    this.logger.log(
+      `LLM stage started: stage=${stage} model=${model} outputMode=${outputMode}`,
+    );
+
+    try {
+      const result = await operation();
+      this.logger.log(
+        `LLM stage succeeded: stage=${stage} model=${model} outputMode=${outputMode} durationMs=${Date.now() - startedAt}`,
+      );
+      return result;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `LLM stage failed: stage=${stage} model=${model} outputMode=${outputMode} durationMs=${Date.now() - startedAt} error=${message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
+    }
   }
 }

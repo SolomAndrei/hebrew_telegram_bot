@@ -11,6 +11,9 @@
     "mini-app:build": "npm --prefix mini-app run build",
     "mini-app:preview": "npm --prefix mini-app run preview",
     "telegram:set-webhook": "node --env-file=.env scripts/set-telegram-webhook.mjs",
+    "db:link": "supabase link",
+    "db:push": "supabase db push",
+    "db:migration:list": "supabase migration list",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write ."
@@ -50,6 +53,7 @@
     "@types/ws": "^8.18.1",
     "eslint": "^10.8.0",
     "prettier": "^3.9.6",
+    "supabase": "^2.111.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.1",
     "typescript": "^6.0.3"

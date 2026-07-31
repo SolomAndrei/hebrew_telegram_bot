@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import type { ArticleToken } from '../mini-app/mini-app-api.contracts';
 import { transcribeHebrewToRussian } from './hebrew-transcription';
@@ -27,6 +27,8 @@ export class AdaptationValidationFailedError extends Error {
 
 @Injectable()
 export class AdaptationService {
+  private readonly logger = new Logger(AdaptationService.name);
+
   constructor(
     @Inject(TEXT_ADAPTER_PORT)
     private readonly textAdapter: TextAdapterPort,
@@ -38,6 +40,10 @@ export class AdaptationService {
     let lastValidationReason: string | undefined;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      this.logger.log(
+        `Adaptation attempt ${attempt}/${maxAttempts}: textLength=${input.rawText.length} level=${input.userLevelScore}`,
+      );
+
       const draft = await this.textAdapter.adaptRawText(input);
       lastDraft = draft;
 
@@ -47,6 +53,10 @@ export class AdaptationService {
       });
 
       if (validation.isValid) {
+        this.logger.log(
+          `Adaptation validated on attempt ${attempt}; enriching reading tokens`,
+        );
+
         const enriched = await this.textAdapter.enrichTextForReading({
           adaptedText: draft.adaptedText,
         });
@@ -69,6 +79,9 @@ export class AdaptationService {
       }
 
       lastValidationReason = validation.reason;
+      this.logger.warn(
+        `Adaptation validation rejected attempt ${attempt}/${maxAttempts}: ${validation.reason ?? 'no reason'}`,
+      );
     }
 
     if (!lastDraft) {

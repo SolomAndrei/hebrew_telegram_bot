@@ -116,6 +116,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         !telegramId ||
         !this.telegramAccessService.isAllowedTelegramId(telegramId)
       ) {
+        this.logger.warn(
+          `Telegram access denied: telegramUserId=${telegramId ?? 'unknown'} updateId=${ctx.update.update_id}`,
+        );
         await ctx.reply('Access denied.');
         return;
       }
@@ -123,6 +126,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       const rateLimit = this.rateLimitService.checkTelegramUser(telegramId);
 
       if (!rateLimit.allowed) {
+        this.logger.warn(
+          `Telegram rate limited: telegramUserId=${telegramId} retryAfterSeconds=${rateLimit.retryAfterSeconds}`,
+        );
         await ctx.reply(
           `Too many messages. Try again in ${rateLimit.retryAfterSeconds} seconds.`,
         );
@@ -133,6 +139,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('start', async (ctx) => {
+      this.logger.log(
+        `Command /start: telegramUserId=${ctx.from?.id} chatId=${ctx.chat?.id}`,
+      );
       await ctx.reply(
         'Welcome. Send Hebrew text, a news link, or /news.',
       );
@@ -142,6 +151,10 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       if (!ctx.from || !ctx.chat) {
         return;
       }
+
+      this.logger.log(
+        `Command /news: telegramUserId=${ctx.from.id} chatId=${ctx.chat.id} updateId=${ctx.update.update_id}`,
+      );
 
       let item: Awaited<ReturnType<DefaultRssService['getLatestItem']>>;
 
@@ -159,13 +172,20 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         );
 
         if (!budget.allowed) {
+          this.logger.warn(
+            `Daily LLM budget reached: telegramUserId=${ctx.from.id} used=${budget.used}/${budget.limit}`,
+          );
           await ctx.reply(
             `Daily adaptation limit reached (${budget.used}/${budget.limit}). Try again tomorrow.`,
           );
           return;
         }
 
-        await this.jobsService.enqueueTelegramJob({
+        this.logger.log(
+          `Enqueueing /news job: telegramUserId=${ctx.from.id} sourceType=url urlHost=${this.safeHost(item.url)}`,
+        );
+
+        const job = await this.jobsService.enqueueTelegramJob({
           type: 'source_url',
           telegramUserId: ctx.from.id,
           telegramChatId: ctx.chat.id,
@@ -179,13 +199,19 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
             update: ctx.update as unknown as Record<string, unknown>,
           },
         });
+
+        this.logger.log(
+          `Job enqueued: jobId=${job.id} type=source_url telegramUserId=${ctx.from.id}`,
+        );
       } catch (error) {
         this.logger.error('Failed to enqueue default RSS news job', error);
         await ctx.reply('The queue is temporarily unavailable. Try again later.');
         return;
       }
 
-      await ctx.reply(`Latest news from ${item.sourceName} has been queued.`);
+      await ctx.reply(
+        `Request received from ${item.sourceName}. Starting processing...`,
+      );
     });
 
     this.bot.on('message', async (ctx) => {
@@ -196,6 +222,9 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       const text = ctx.message?.text;
 
       if (!text) {
+        this.logger.log(
+          `Unsupported message type: telegramUserId=${ctx.from.id} updateId=${ctx.update.update_id}`,
+        );
         await ctx.reply(
           'Unsupported message type. Send Hebrew text, a URL, or a public Telegram channel link.',
         );
@@ -203,6 +232,10 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       }
 
       const source = this.sourceClassifierService.classify(text);
+
+      this.logger.log(
+        `Telegram message classified: telegramUserId=${ctx.from.id} updateId=${ctx.update.update_id} sourceType=${source.type} textLength=${text.length}`,
+      );
 
       if (source.type === 'unsupported') {
         await ctx.reply(this.getUnsupportedSourceMessage(source.reason));
@@ -215,14 +248,23 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
         );
 
         if (!budget.allowed) {
+          this.logger.warn(
+            `Daily LLM budget reached: telegramUserId=${ctx.from.id} used=${budget.used}/${budget.limit}`,
+          );
           await ctx.reply(
             `Daily adaptation limit reached (${budget.used}/${budget.limit}). Try again tomorrow.`,
           );
           return;
         }
 
-        await this.jobsService.enqueueTelegramJob({
-          type: this.getJobType(source),
+        const jobType = this.getJobType(source);
+
+        this.logger.log(
+          `Enqueueing Telegram job: telegramUserId=${ctx.from.id} type=${jobType} sourceType=${source.type}`,
+        );
+
+        const job = await this.jobsService.enqueueTelegramJob({
+          type: jobType,
           telegramUserId: ctx.from.id,
           telegramChatId: ctx.chat.id,
           telegramUpdateId: ctx.update.update_id,
@@ -231,13 +273,17 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
             update: ctx.update as unknown as Record<string, unknown>,
           },
         });
+
+        this.logger.log(
+          `Job enqueued: jobId=${job.id} type=${jobType} telegramUserId=${ctx.from.id}`,
+        );
       } catch (error) {
         this.logger.error('Failed to enqueue Telegram message job', error);
         await ctx.reply('The queue is temporarily unavailable. Try again later.');
         return;
       }
 
-      await ctx.reply('Your request has been queued.');
+      await ctx.reply('Request received. Starting processing...');
     });
   }
 
@@ -279,5 +325,13 @@ export class BotService implements OnModuleInit, OnModuleDestroy {
       : `Article ID: ${articleId}`;
 
     return `${visibleText}\n\n${articleReference}`;
+  }
+
+  private safeHost(url: string): string {
+    try {
+      return new URL(url).host;
+    } catch {
+      return 'invalid-url';
+    }
   }
 }
